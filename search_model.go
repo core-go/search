@@ -3,15 +3,15 @@ package search
 import "reflect"
 
 type SearchModel struct {
-	PageIndex     int                      `json:"pageIndex,omitempty" bson:"pageIndex,omitempty" gorm:"column:pageindex"`
-	PageSize      int                      `json:"pageSize,omitempty" bson:"pageSize,omitempty" gorm:"column:pagesize"`
-	InitPageSize  int                      `json:"initPageSize,omitempty" bson:"initPageSize,omitempty" gorm:"column:initpagesize"`
-	Fields        []string                 `json:"fields,omitempty" bson:"fields,omitempty" gorm:"column:fields"`
-	SortField     string                   `json:"sortField,omitempty" bson:"sortField,omitempty" gorm:"column:sortfield"`
-	SortType      string                   `json:"sortType,omitempty" bson:"sortType,omitempty" gorm:"column:sorttype"`
-	CurrentUserId string                   `json:"currentUserId,omitempty" bson:"currentUserId,omitempty" gorm:"column:currentuserid"`
-	Keyword       string                   `json:"keyword,omitempty" bson:"keyword,omitempty" gorm:"column:keyword"`
-	Excluding     map[string][]interface{} `json:"excluding,omitempty" bson:"excluding,omitempty" gorm:"column:excluding"`
+	PageIndex     int64                    `json:"pageIndex,omitempty" gorm:"column:pageindex" bson:"pageIndex,omitempty" dynamodbav:"pageIndex,omitempty" firestore:"pageIndex,omitempty"`
+	PageSize      int64                    `json:"pageSize,omitempty" gorm:"column:pagesize" bson:"pageSize,omitempty" dynamodbav:"pageSize,omitempty" firestore:"pageSize,omitempty"`
+	InitPageSize  int64                    `json:"initPageSize,omitempty" gorm:"column:initpagesize" bson:"initPageSize,omitempty" dynamodbav:"initpagesize,omitempty" firestore:"initpagesize,omitempty"`
+	Fields        []string                 `json:"fields,omitempty" gorm:"column:fields" bson:"fields,omitempty" dynamodbav:"fields,omitempty" firestore:"fields,omitempty"`
+	SortField     string                   `json:"sortField,omitempty" gorm:"column:sortfield" bson:"sortField,omitempty" dynamodbav:"sortField,omitempty" firestore:"sortField,omitempty"`
+	SortType      string                   `json:"sortType,omitempty" gorm:"column:sorttype" bson:"sortType,omitempty" dynamodbav:"sorttype,omitempty" firestore:"sorttype,omitempty"`
+	CurrentUserId string                   `json:"currentUserId,omitempty" gorm:"column:currentuserid" bson:"currentUserId,omitempty" dynamodbav:"currentUserId,omitempty" firestore:"currentUserId,omitempty"`
+	Keyword       string                   `json:"keyword,omitempty" gorm:"column:keyword" bson:"keyword,omitempty" dynamodbav:"keyword,omitempty" firestore:"keyword,omitempty"`
+	Excluding     map[string][]interface{} `json:"excluding,omitempty" gorm:"column:excluding" bson:"excluding,omitempty" dynamodbav:"excluding,omitempty" firestore:"excluding,omitempty"`
 }
 
 func IsExtendedFromSearchModel(searchModelType reflect.Type) bool {
