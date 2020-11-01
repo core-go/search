@@ -63,7 +63,7 @@ func Query(db *sql.DB, results interface{}, sql string, values ...interface{}) e
 		return err1
 	}
 	defer rows.Close()
-	tb, err2 := ScanType(rows, results)
+	tb, err2 := ScanSearchType(rows, results)
 	if err2 != nil {
 		return err2
 	}
@@ -78,17 +78,17 @@ func Query(db *sql.DB, results interface{}, sql string, values ...interface{}) e
 	}
 	return nil
 }
-func ScanType(rows *sql.Rows, tb interface{}) (t []interface{}, err error) {
+func ScanSearchType(rows *sql.Rows, tb interface{}) (t []interface{}, err error) {
 	for rows.Next() {
 		gTb := reflect.New(reflect.TypeOf(tb).Elem()).Interface()
-		if err = rows.Scan(StructScan(gTb)...); err == nil {
+		if err = rows.Scan(StructSearchScan(gTb)...); err == nil {
 			t = append(t, gTb)
 		}
 	}
 
 	return
 }
-func StructScan(s interface{}) (r []interface{}) {
+func StructSearchScan(s interface{}) (r []interface{}) {
 	if s != nil {
 		vals := reflect.ValueOf(s).Elem()
 		for i := 0; i < vals.NumField(); i++ {

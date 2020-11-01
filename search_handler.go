@@ -2,20 +2,19 @@ package search
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type SearchHandler struct {
 	searchService             SearchService
 	searchModelType           reflect.Type
-	LogWriter                 LogWriter
+	LogWriter                 SearchLogWriter
 	quickSearch               bool
 	isExtendedSearchModelType bool
 	Resource                  string
@@ -33,20 +32,20 @@ const (
 	MaxPageSizeDefault = 10000
 )
 
-func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, logService LogWriter, quickSearch bool, resource string, userId string, embedField string) *SearchHandler {
+func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, logService SearchLogWriter, quickSearch bool, resource string, userId string, embedField string) *SearchHandler {
 	isExtendedSearchModelType := IsExtendedFromSearchModel(searchModelType)
 	if isExtendedSearchModelType == false {
 		panic(errors.New(searchModelType.Name() + " isn't SearchModel struct nor extended from SearchModel struct!"))
 	}
 
-	paramIndex := buildParamIndex(searchModelType)
-	searchModelParamIndex := buildParamIndex(reflect.TypeOf(SearchModel{}))
-	searchModelIndex := findSearchModelIndex(searchModelType)
+	paramIndex := BuildParamIndex(searchModelType)
+	searchModelParamIndex := BuildParamIndex(reflect.TypeOf(SearchModel{}))
+	searchModelIndex := FindSearchModelIndex(searchModelType)
 
 	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField}
 }
 
-func buildParamIndex(searchModelType reflect.Type) map[string]int {
+func BuildParamIndex(searchModelType reflect.Type) map[string]int {
 	params := map[string]int{}
 
 	numField := searchModelType.NumField()
@@ -62,7 +61,7 @@ func buildParamIndex(searchModelType reflect.Type) map[string]int {
 	return params
 }
 
-func findSearchModelIndex(searchModelType reflect.Type) int {
+func FindSearchModelIndex(searchModelType reflect.Type) int {
 	numField := searchModelType.NumField()
 	for i := 0; i < numField; i++ {
 		if searchModelType.Field(i).Type == reflect.TypeOf(&SearchModel{}) {
@@ -73,7 +72,7 @@ func findSearchModelIndex(searchModelType reflect.Type) int {
 }
 
 // Check valid and change value of pagination to correct
-func (c *SearchHandler) repairSearchModel(searchModel *SearchModel, currentUserId string) {
+func RepairSearchModel(searchModel *SearchModel, currentUserId string) {
 	searchModel.CurrentUserId = currentUserId
 
 	pageSize := searchModel.Limit
@@ -94,26 +93,24 @@ func (c *SearchHandler) repairSearchModel(searchModel *SearchModel, currentUserI
 	}
 }
 
-func (c *SearchHandler) ProcessSearchModel(sm interface{}, currentUserId string) {
+func ProcessSearchModel(sm interface{}, currentUserId string) {
 	if s, ok := sm.(*SearchModel); ok { // Is SearchModel struct
-		c.repairSearchModel(s, currentUserId)
+		RepairSearchModel(s, currentUserId)
 	} else { // Is extended from SearchModel struct
 		value := reflect.Indirect(reflect.ValueOf(sm))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			// Find SearchModel field of extended struct
 			if s, ok := value.Field(i).Interface().(*SearchModel); ok {
-				c.repairSearchModel(s, currentUserId)
+				RepairSearchModel(s, currentUserId)
 				break
 			}
 		}
 	}
 }
-
-func (c *SearchHandler) CreateSearchModelObject() interface{} {
-	var searchModel = reflect.New(c.searchModelType).Interface()
-
-	if c.isExtendedSearchModelType {
+func CreateSearchModelObject(searchModelType reflect.Type, isExtendedSearchModelType bool) interface{} {
+	var searchModel = reflect.New(searchModelType).Interface()
+	if isExtendedSearchModelType {
 		value := reflect.Indirect(reflect.ValueOf(searchModel))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
@@ -127,8 +124,7 @@ func (c *SearchHandler) CreateSearchModelObject() interface{} {
 	}
 	return searchModel
 }
-
-func (c *SearchHandler) mapParamsToSearchModel(searchModel interface{}, params url.Values) interface{} {
+func MapParamsToSearchModel(searchModel interface{}, params url.Values, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) interface{} {
 	value := reflect.Indirect(reflect.ValueOf(searchModel))
 	if value.Kind() == reflect.Ptr {
 		value = reflect.Indirect(value)
@@ -139,7 +135,7 @@ func (c *SearchHandler) mapParamsToSearchModel(searchModel interface{}, params u
 		if len(valueArr) > 0 {
 			paramValue = valueArr[0]
 		}
-		if err, field := c.findField(value, paramKey); err == nil {
+		if err, field := FindField(value, paramKey, searchModelParamIndex, searchModelIndex, paramIndex); err == nil {
 			kind := field.Kind()
 
 			var v interface{}
@@ -176,21 +172,21 @@ func (c *SearchHandler) mapParamsToSearchModel(searchModel interface{}, params u
 	return searchModel
 }
 
-func (c *SearchHandler) findField(value reflect.Value, paramKey string) (error, reflect.Value) {
-	if index, ok := c.searchModelParamIndex[paramKey]; ok {
-		searchModelField := value.Field(c.searchModelIndex)
+func FindField(value reflect.Value, paramKey string, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) (error, reflect.Value) {
+	if index, ok := searchModelParamIndex[paramKey]; ok {
+		searchModelField := value.Field(searchModelIndex)
 		if searchModelField.Kind() == reflect.Ptr {
 			searchModelField = reflect.Indirect(searchModelField)
 		}
 		return nil, searchModelField.Field(index)
-	} else if index, ok := c.paramIndex[paramKey]; ok {
+	} else if index, ok := paramIndex[paramKey]; ok {
 		return nil, value.Field(index)
 	}
 	return errors.New("can't find field " + paramKey), value
 }
 
 func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
-	var searchModel = c.CreateSearchModelObject()
+	var searchModel = CreateSearchModelObject(c.searchModelType, c.isExtendedSearchModelType)
 
 	method := r.Method
 	x := 1
@@ -200,7 +196,7 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		if len(fs) == 0 {
 			x = -1
 		}
-		c.mapParamsToSearchModel(searchModel, ps)
+		MapParamsToSearchModel(searchModel, ps, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
 	} else if method == http.MethodPost {
 		if err := json.NewDecoder(r.Body).Decode(&searchModel); err != nil {
 			http.Error(w, "cannot decode search model: "+err.Error(), http.StatusBadRequest)
@@ -218,14 +214,14 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	c.ProcessSearchModel(searchModel, userId)
+	ProcessSearchModel(searchModel, userId)
 
 	result, err := c.searchService.Search(r.Context(), searchModel)
 	if err != nil {
-		Respond(w, r, http.StatusInternalServerError, InternalServerError, c.LogWriter, c.Resource, "Reject", false, err.Error())
+		respond(w, r, http.StatusInternalServerError, internalServerError, c.LogWriter, c.Resource, "Reject", false, err.Error())
 	} else {
 		if x == -1 {
-			Succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
+			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
 		} else if c.quickSearch && x == 1 {
 			value := reflect.Indirect(reflect.ValueOf(searchModel))
 			numField := value.NumField()
@@ -235,15 +231,15 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 				if v, ok := interfaceOfField.(*SearchModel); ok {
 					if len(v.Fields) > 0 {
 						result1 := ToCsv(interfaceOfField, result, c.embedField)
-						Succeed(w, r, http.StatusOK, result1, c.LogWriter, c.Resource, "Search")
+						succeed(w, r, http.StatusOK, result1, c.LogWriter, c.Resource, "Search")
 						return
 					}
 				}
 			}
-			Succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
-			// Error(w, r, http.StatusBadRequest, errors.New("Bad request"), c.LogWriter, c.Resource, "Search")
+			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
+			// Error(w, r, http.StatusBadRequest, errors.New("Bad request"), c.SearchLogWriter, c.Resource, "Search")
 		} else {
-			Succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
+			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
 		}
 	}
 }
