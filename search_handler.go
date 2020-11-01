@@ -2,7 +2,6 @@ package search
 
 import (
 	"encoding/json"
-	"github.com/common-go/search"
 	"log"
 	"net/http"
 	"net/url"
@@ -41,7 +40,7 @@ func NewSearchHandler(searchService SearchService, searchModelType reflect.Type,
 	}
 
 	paramIndex := buildParamIndex(searchModelType)
-	searchModelParamIndex := buildParamIndex(reflect.TypeOf(search.SearchModel{}))
+	searchModelParamIndex := buildParamIndex(reflect.TypeOf(SearchModel{}))
 	searchModelIndex := findSearchModelIndex(searchModelType)
 
 	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField}
@@ -66,7 +65,7 @@ func buildParamIndex(searchModelType reflect.Type) map[string]int {
 func findSearchModelIndex(searchModelType reflect.Type) int {
 	numField := searchModelType.NumField()
 	for i := 0; i < numField; i++ {
-		if searchModelType.Field(i).Type == reflect.TypeOf(&search.SearchModel{}) {
+		if searchModelType.Field(i).Type == reflect.TypeOf(&SearchModel{}) {
 			return i
 		}
 	}
@@ -74,7 +73,7 @@ func findSearchModelIndex(searchModelType reflect.Type) int {
 }
 
 // Check valid and change value of pagination to correct
-func (c *SearchHandler) repairSearchModel(searchModel *search.SearchModel, currentUserId string) {
+func (c *SearchHandler) repairSearchModel(searchModel *SearchModel, currentUserId string) {
 	searchModel.CurrentUserId = currentUserId
 
 	pageSize := searchModel.Limit
@@ -96,14 +95,14 @@ func (c *SearchHandler) repairSearchModel(searchModel *search.SearchModel, curre
 }
 
 func (c *SearchHandler) ProcessSearchModel(sm interface{}, currentUserId string) {
-	if s, ok := sm.(*search.SearchModel); ok { // Is SearchModel struct
+	if s, ok := sm.(*SearchModel); ok { // Is SearchModel struct
 		c.repairSearchModel(s, currentUserId)
 	} else { // Is extended from SearchModel struct
 		value := reflect.Indirect(reflect.ValueOf(sm))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			// Find SearchModel field of extended struct
-			if s, ok := value.Field(i).Interface().(*search.SearchModel); ok {
+			if s, ok := value.Field(i).Interface().(*SearchModel); ok {
 				c.repairSearchModel(s, currentUserId)
 				break
 			}
@@ -119,9 +118,9 @@ func (c *SearchHandler) CreateSearchModelObject() interface{} {
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			// Find SearchModel field of extended struct
-			if _, ok := value.Field(i).Interface().(*search.SearchModel); ok {
+			if _, ok := value.Field(i).Interface().(*SearchModel); ok {
 				// Init SearchModel to avoid nil value
-				value.Field(i).Set(reflect.ValueOf(&search.SearchModel{}))
+				value.Field(i).Set(reflect.ValueOf(&SearchModel{}))
 				break
 			}
 		}
@@ -233,7 +232,7 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			for i := 0; i < numField; i++ {
 				field := value.Field(i)
 				interfaceOfField := field.Interface()
-				if v, ok := interfaceOfField.(*search.SearchModel); ok {
+				if v, ok := interfaceOfField.(*SearchModel); ok {
 					if len(v.Fields) > 0 {
 						result1 := ToCsv(interfaceOfField, result, c.embedField)
 						Succeed(w, r, http.StatusOK, result1, c.LogWriter, c.Resource, "Search")
