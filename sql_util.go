@@ -2,6 +2,7 @@ package search
 
 import (
 	"database/sql"
+	"errors"
 	"reflect"
 	"strings"
 )
@@ -35,7 +36,6 @@ func GetColumnName(modelType reflect.Type, fieldName string) (col string, colExi
 	field, ok := modelType.FieldByName(fieldName)
 	if !ok {
 		return fieldName, false
-		//return gorm.ToColumnName(fieldName), false
 	}
 	tag2, ok2 := field.Tag.Lookup("gorm")
 	if !ok2 {
@@ -57,17 +57,45 @@ func GetColumnName(modelType reflect.Type, fieldName string) (col string, colExi
 	//return gorm.ToColumnName(fieldName), false
 	return fieldName, false
 }
-func Query(db *sql.DB, results interface{}, sql string, values ...interface{}) error {
+
+func Count(db *sql.DB,sql string, values ...interface{}) (int64, error) {
+	var total int64
+	row := db.QueryRow(sql, values...)
+	err2 := row.Scan(&total)
+	if err2 != nil {
+		return total, err2
+	}
+	return total,nil
+}
+
+func Query(db *sql.DB, results interface{}, modelType reflect.Type, fieldsIndex map[string]int, sql string, values ...interface{}) error {
 	rows, err1 := db.Query(sql, values...)
 	if err1 != nil {
 		return err1
 	}
 	defer rows.Close()
-	tb, err2 := ScanSearchType(rows, results)
-	if err2 != nil {
-		return err2
+	if fieldsIndex == nil {
+		tb, err2 := ScanSearchType(rows, modelType)
+		if err2 != nil {
+			return err2
+		}
+		reflect.ValueOf(results).Elem().Set(reflect.ValueOf(tb).Elem())
+	} else {
+		columns, _ := rows.Columns()
+		fieldsIndexSelected := make([]int, 0)
+		for _, columnsName := range columns {
+			if index, ok := fieldsIndex[columnsName]; ok {
+				fieldsIndexSelected = append(fieldsIndexSelected, index)
+			}
+		}
+		tb, err2 := ScanType(rows, modelType, fieldsIndexSelected)
+		if err2 != nil {
+			return err2
+		}
+		for _, element := range tb {
+			appendToArray(results, element)
+		}
 	}
-	results = tb
 	rerr := rows.Close()
 	if rerr != nil {
 		return rerr
@@ -78,9 +106,75 @@ func Query(db *sql.DB, results interface{}, sql string, values ...interface{}) e
 	}
 	return nil
 }
-func ScanSearchType(rows *sql.Rows, tb interface{}) (t []interface{}, err error) {
+
+func appendToArray(arr interface{}, item interface{}) interface{} {
+	arrValue := reflect.ValueOf(arr)
+	elemValue := reflect.Indirect(arrValue)
+
+	itemValue := reflect.ValueOf(item)
+	if itemValue.Kind() == reflect.Ptr {
+		itemValue = reflect.Indirect(itemValue)
+	}
+	elemValue.Set(reflect.Append(elemValue, itemValue))
+	return arr
+}
+
+// StructScan : transfer struct to slice for scan
+func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
+	if s != nil {
+		maps := reflect.Indirect(reflect.ValueOf(s))
+		for _, index := range indexColumns {
+			r = append(r, maps.Field(index).Addr().Interface())
+		}
+	}
+	return
+}
+
+func getColumnIndexes(modelType reflect.Type) (map[string]int, error) {
+	mapp := make(map[string]int, 0)
+	if modelType.Kind() != reflect.Struct {
+		return mapp, errors.New("Bad Type")
+	}
+	for i := 0; i < modelType.NumField(); i++ {
+		field := modelType.Field(i)
+		ormTag := field.Tag.Get("gorm")
+		column, ok := findTag(ormTag, "column")
+		if ok {
+			mapp[column] = i
+		}
+	}
+	return mapp, nil
+}
+
+func findTag(tag string, key string) (string, bool) {
+	if has := strings.Contains(tag, key); has {
+		str1 := strings.Split(tag, ";")
+		num := len(str1)
+		for i := 0; i < num; i++ {
+			str2 := strings.Split(str1[i], ":")
+			for j := 0; j < len(str2); j++ {
+				if str2[j] == key {
+					return str2[j+1], true
+				}
+			}
+		}
+	}
+	return "", false
+}
+
+func ScanType(rows *sql.Rows, modelType reflect.Type, indexes []int) (t []interface{}, err error) {
 	for rows.Next() {
-		gTb := reflect.New(reflect.TypeOf(tb).Elem()).Interface()
+		initModel := reflect.New(modelType).Interface()
+		if err = rows.Scan(StructScan(initModel, indexes)...); err == nil {
+			t = append(t, initModel)
+		}
+	}
+	return
+}
+
+func ScanSearchType(rows *sql.Rows, modelType reflect.Type) (t []interface{}, err error) {
+	for rows.Next() {
+		gTb := reflect.New(modelType).Interface()
 		if err = rows.Scan(StructSearchScan(gTb)...); err == nil {
 			t = append(t, gTb)
 		}
@@ -90,7 +184,7 @@ func ScanSearchType(rows *sql.Rows, tb interface{}) (t []interface{}, err error)
 }
 func StructSearchScan(s interface{}) (r []interface{}) {
 	if s != nil {
-		vals := reflect.ValueOf(s).Elem()
+		vals := reflect.Indirect(reflect.ValueOf(s))
 		for i := 0; i < vals.NumField(); i++ {
 			r = append(r, vals.Field(i).Addr().Interface())
 		}
@@ -106,10 +200,34 @@ func GetColumnNameForSearch(modelType reflect.Type, sortField string) string {
 	}
 	return sortField // injection
 }
+
+func getColumnsSelect(modelType reflect.Type) []string {
+	numField := modelType.NumField()
+	columnNameKeys := make([]string, 0)
+	for i := 0; i < numField; i++ {
+		field := modelType.Field(i)
+		ormTag := field.Tag.Get("gorm")
+		if has := strings.Contains(ormTag, "column"); has {
+			str1 := strings.Split(ormTag, ";")
+			num := len(str1)
+			for i := 0; i < num; i++ {
+				str2 := strings.Split(str1[i], ":")
+				for j := 0; j < len(str2); j++ {
+					if str2[j] == "column" {
+						columnName := str2[j+1]
+						columnNameKeys = append(columnNameKeys, columnName)
+					}
+				}
+			}
+		}
+	}
+	return columnNameKeys
+}
+
 func GetSortType(sortType string) string {
 	if sortType == "-" {
 		return desc
-	} else  {
+	} else {
 		return asc
 	}
 }

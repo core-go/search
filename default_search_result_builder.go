@@ -36,26 +36,26 @@ func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m in
 			}
 		}
 	}
-	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.Page, searchModel.Limit, searchModel.FirstLimit, b.Mapper)
+	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.PageIndex, searchModel.PageSize, searchModel.FirstLimit, b.Mapper)
 }
 
+
 func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper) (*SearchResult, error) {
-	var countSelect struct {
-		Total int
-	}
+	var total int64
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
 	queryPaging, paramsPaging := BuildPagingQuery(query, params, pageIndex, pageSize, initPageSize)
 	queryCount, paramsCount := BuildCountQuery(query, params)
-	er1 := Query(db, models, queryPaging, paramsPaging...)
+	fieldsIndex, _ := getColumnIndexes(modelType)
+	er1 := Query(db, models, modelType, fieldsIndex, queryPaging, paramsPaging...)
 	if er1 != nil {
 		return nil, er1
 	}
-	er2 := Query(db, &countSelect, queryCount, paramsCount...)
+	total,er2 := Count(db,queryCount, paramsCount...)
 	if er2 != nil {
-		countSelect.Total = 0
+		total = 0
 	}
-	return BuildSearchResult(ctx, models, int64(countSelect.Total), pageIndex, pageSize, initPageSize, mapper)
+	return BuildSearchResult(ctx, models, total, pageIndex, pageSize, initPageSize, mapper)
 }
 
 func BuildPagingQuery(sql string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64) (string, []interface{}) {

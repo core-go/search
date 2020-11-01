@@ -78,7 +78,12 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			if len(fields) > 0 {
 				s1 = `SELECT ` + strings.Join(fields, ",") + ` FROM ` + b.TableName
 			} else {
-				s1 = `SELECT * FROM ` + b.TableName
+				columns := getColumnsSelect(b.ModelType)
+				if len(columns) > 0 {
+					s1 = `SELECT  ` + strings.Join(columns, ",") + ` FROM ` + b.TableName
+				} else {
+					s1 = `SELECT * FROM ` + b.TableName
+				}
 			}
 			if len(v.Sort) > 0 {
 				sortString = BuildSort(v.Sort, b.ModelType)
