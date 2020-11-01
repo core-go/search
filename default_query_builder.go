@@ -16,7 +16,7 @@ type DefaultQueryBuilder struct {
 }
 
 func NewQueryBuilder(tableName string, modelType reflect.Type) *DefaultQueryBuilder {
-	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType}
+	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType, QuestionParam: true}
 }
 
 const (
@@ -48,6 +48,10 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 	fields := make([]string, 0)
 	var keyword string
 	var keywordFormat map[string]string
+	keywordFormat = map[string]string{
+		"prefix":  "?%",
+		"contain": "%?%",
+	}
 
 	value := reflect.Indirect(reflect.ValueOf(sm))
 	typeOfValue := value.Type()
@@ -107,10 +111,6 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				}
 			} else if len(v.Keyword) > 0 {
 				keyword = strings.TrimSpace(v.Keyword)
-				keywordFormat = map[string]string{
-					"prefix":  "?%",
-					"contain": "%?%",
-				}
 			}
 			continue
 		} else if dateRange, ok := interfaceOfField.(DateRange); ok {
@@ -144,6 +144,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 						//	value2 = EscapeStringForSelect(value2)
 						//}
 						value2 = value2 + `%`
+						//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
 						queryValues = append(queryValues, value2)
 					} else {
 						log.Panicf("match not support \"%v\" format\n", key)
@@ -160,6 +161,16 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 					//	value2 = EscapeStringForSelect(value2)
 					//}
 					value2 = `%` + value2 + `%`
+					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
+					queryValues = append(queryValues, value2)
+				} else {
+					searchValue = `?`
+					value2, valid := interfaceOfField.(string)
+					if !valid {
+						log.Panicf("invalid data \"%v\" \n", interfaceOfField)
+					}
+					value2 = value2 + `%`
+					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
 					queryValues = append(queryValues, value2)
 				}
 			} else if len(keyword) > 0 {
