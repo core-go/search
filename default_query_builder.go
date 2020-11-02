@@ -51,6 +51,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 	keywordFormat = map[string]string{
 		"prefix":  "?%",
 		"contain": "%?%",
+		"match":   "?",
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(sm))
@@ -209,7 +210,12 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			}
 		} else if kind == reflect.Slice {
 			if field.Len() > 0 {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s (?)", columnName, In))
+				format := "(?"
+				for i := 0; i < field.Len()-1; i++ {
+					format += ", ?"
+				}
+				format += ")"
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, In, format))
 				queryValues = append(queryValues, interfaceOfField)
 			}
 		} else {
