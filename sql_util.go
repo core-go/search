@@ -58,14 +58,14 @@ func GetColumnName(modelType reflect.Type, fieldName string) (col string, colExi
 	return fieldName, false
 }
 
-func Count(db *sql.DB,sql string, values ...interface{}) (int64, error) {
+func Count(db *sql.DB, sql string, values ...interface{}) (int64, error) {
 	var total int64
 	row := db.QueryRow(sql, values...)
 	err2 := row.Scan(&total)
 	if err2 != nil {
 		return total, err2
 	}
-	return total,nil
+	return total, nil
 }
 
 func Query(db *sql.DB, results interface{}, modelType reflect.Type, fieldsIndex map[string]int, sql string, values ...interface{}) error {
@@ -130,15 +130,15 @@ func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
 	return
 }
 
-func getColumnIndexes(modelType reflect.Type) (map[string]int, error) {
+func GetColumnIndexes(modelType reflect.Type) (map[string]int, error) {
 	mapp := make(map[string]int, 0)
 	if modelType.Kind() != reflect.Struct {
-		return mapp, errors.New("Bad Type")
+		return mapp, errors.New("bad type")
 	}
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
 		ormTag := field.Tag.Get("gorm")
-		column, ok := findTag(ormTag, "column")
+		column, ok := FindTag(ormTag, "column")
 		if ok {
 			mapp[column] = i
 		}
@@ -146,7 +146,7 @@ func getColumnIndexes(modelType reflect.Type) (map[string]int, error) {
 	return mapp, nil
 }
 
-func findTag(tag string, key string) (string, bool) {
+func FindTag(tag string, key string) (string, bool) {
 	if has := strings.Contains(tag, key); has {
 		str1 := strings.Split(tag, ";")
 		num := len(str1)
@@ -201,7 +201,7 @@ func GetColumnNameForSearch(modelType reflect.Type, sortField string) string {
 	return sortField // injection
 }
 
-func getColumnsSelect(modelType reflect.Type) []string {
+func GetColumnsSelect(modelType reflect.Type) []string {
 	numField := modelType.NumField()
 	columnNameKeys := make([]string, 0)
 	for i := 0; i < numField; i++ {

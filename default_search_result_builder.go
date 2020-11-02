@@ -36,9 +36,8 @@ func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m in
 			}
 		}
 	}
-	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.PageIndex, searchModel.PageSize, searchModel.FirstLimit, b.Mapper)
+	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.PageIndex, searchModel.PageSize, searchModel.FirstPageSize, b.Mapper)
 }
-
 
 func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper) (*SearchResult, error) {
 	var total int64
@@ -46,12 +45,15 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	models := reflect.New(modelsType).Interface()
 	queryPaging, paramsPaging := BuildPagingQuery(query, params, pageIndex, pageSize, initPageSize)
 	queryCount, paramsCount := BuildCountQuery(query, params)
-	fieldsIndex, _ := getColumnIndexes(modelType)
+	fieldsIndex, er0 := GetColumnIndexes(modelType)
+	if er0 != nil {
+		return nil, er0
+	}
 	er1 := Query(db, models, modelType, fieldsIndex, queryPaging, paramsPaging...)
 	if er1 != nil {
 		return nil, er1
 	}
-	total,er2 := Count(db,queryCount, paramsCount...)
+	total, er2 := Count(db, queryCount, paramsCount...)
 	if er2 != nil {
 		total = 0
 	}

@@ -78,7 +78,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			if len(fields) > 0 {
 				s1 = `SELECT ` + strings.Join(fields, ",") + ` FROM ` + b.TableName
 			} else {
-				columns := getColumnsSelect(b.ModelType)
+				columns := GetColumnsSelect(b.ModelType)
 				if len(columns) > 0 {
 					s1 = `SELECT  ` + strings.Join(columns, ",") + ` FROM ` + b.TableName
 				} else {
