@@ -51,7 +51,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 	keywordFormat = map[string]string{
 		"prefix":  "?%",
 		"contain": "%?%",
-		"match":   "?",
+		"equal":   "?",
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(sm))
