@@ -3,12 +3,24 @@ package search
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
-const desc = "DESC"
-const asc = "ASC"
+const (
+	DRIVER_POSTGRES 	= "postgres"
+	DRIVER_MYSQL    	= "mysql"
+	DRIVER_MSSQL    	= "mssql"
+	DRIVER_ORACLE    	= "oracle"
+	DRIVER_NOT_SUPPORT  = "no support"
+	DEFAULT_PAGING_FORMAT = " LIMIT %s OFFSET %s"
+	ORACLE_PAGING_FORMAT  = " OFFSET %s ROWS FETCH NEXT %s ROWS ONLY"
+	desc = "DESC"
+	asc = "ASC"
+)
+
 
 type DefaultSearchResultBuilder struct {
 	Database     *sql.DB
@@ -43,13 +55,13 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	var total int64
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	queryPaging, paramsPaging := BuildPagingQuery(query, params, pageIndex, pageSize, initPageSize)
+	queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, getDriver(db))
 	queryCount, paramsCount := BuildCountQuery(query, params)
 	fieldsIndex, er0 := GetColumnIndexes(modelType)
 	if er0 != nil {
 		return nil, er0
 	}
-	er1 := Query(db, models, modelType, fieldsIndex, queryPaging, paramsPaging...)
+	er1 := Query(db, models, modelType, fieldsIndex, queryPaging, params...)
 	if er1 != nil {
 		return nil, er1
 	}
@@ -60,20 +72,32 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	return BuildSearchResult(ctx, models, total, pageIndex, pageSize, initPageSize, mapper)
 }
 
-func BuildPagingQuery(sql string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64) (string, []interface{}) {
+func BuildPagingQuery(sql string, pageIndex int64, pageSize int64, initPageSize int64, driver string) string {
 	if pageSize > 0 {
-		sql = sql + ` LIMIT ? OFFSET ? `
+		var limit, offset int64
 		if initPageSize > 0 {
 			if pageIndex == 1 {
-				params = append(params, initPageSize, 0)
+				limit = initPageSize
+				offset = 0
 			} else {
-				params = append(params, pageSize, pageSize*(pageIndex-2)+initPageSize)
+				limit = pageSize
+				offset = pageSize*(pageIndex-2)+initPageSize
 			}
 		} else {
-			params = append(params, pageSize, pageSize*(pageIndex-1))
+			limit = pageSize
+			offset = pageSize*(pageIndex-1)
 		}
+
+		var pagingQuery string
+		if driver == DRIVER_ORACLE {
+			pagingQuery = fmt.Sprintf(ORACLE_PAGING_FORMAT, strconv.Itoa(int(offset)), strconv.Itoa(int(limit)))
+		} else {
+			pagingQuery = fmt.Sprintf(DEFAULT_PAGING_FORMAT, strconv.Itoa(int(limit)), strconv.Itoa(int(offset)))
+		}
+		sql += pagingQuery
 	}
-	return sql, params
+
+	return sql
 }
 
 func BuildCountQuery(sql string, params []interface{}) (string, []interface{}) {
@@ -130,4 +154,18 @@ func BuildSearchResult(ctx context.Context, models interface{}, count int64, pag
 	}
 	searchResult.Results = r2
 	return &searchResult, er3
+}
+
+func getDriver(db *sql.DB) string {
+	driver := reflect.TypeOf(db.Driver()).String()
+	switch driver {
+	case "*postgres.Driver":
+		return DRIVER_POSTGRES
+	case "*mysql.MySQLDriver":
+		return DRIVER_MYSQL
+	case "*mssql.Driver":
+		return DRIVER_MSSQL
+	default:
+		return DRIVER_NOT_SUPPORT
+	}
 }
