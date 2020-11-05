@@ -53,11 +53,17 @@ func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m in
 
 func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper) (*SearchResult, error) {
 	var total int64
+	if getDriver(db) == DRIVER_ORACLE {
+		for i :=0; i < len(params); i++ {
+			count := i+1
+			query = strings.Replace(query,"?",":val" + fmt.Sprintf("%v",count) ,1)
+		}
+	}
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
 	queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, getDriver(db))
 	queryCount, paramsCount := BuildCountQuery(query, params)
-	fieldsIndex, er0 := GetColumnIndexes(modelType)
+	fieldsIndex, er0 := GetColumnIndexes(modelType,getDriver(db))
 	if er0 != nil {
 		return nil, er0
 	}
@@ -165,6 +171,8 @@ func getDriver(db *sql.DB) string {
 		return DRIVER_MYSQL
 	case "*mssql.Driver":
 		return DRIVER_MSSQL
+	case "*godror.drv":
+		return DRIVER_ORACLE
 	default:
 		return DRIVER_NOT_SUPPORT
 	}

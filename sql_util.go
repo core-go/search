@@ -130,7 +130,7 @@ func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
 	return
 }
 
-func GetColumnIndexes(modelType reflect.Type) (map[string]int, error) {
+func GetColumnIndexes(modelType reflect.Type, driver string) (map[string]int, error) {
 	mapp := make(map[string]int, 0)
 	if modelType.Kind() != reflect.Struct {
 		return mapp, errors.New("bad type")
@@ -140,6 +140,9 @@ func GetColumnIndexes(modelType reflect.Type) (map[string]int, error) {
 		ormTag := field.Tag.Get("gorm")
 		column, ok := FindTag(ormTag, "column")
 		if ok {
+			if driver == DRIVER_ORACLE {
+				column = strings.ToUpper(column)
+			}
 			mapp[column] = i
 		}
 	}
