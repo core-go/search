@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -108,14 +107,18 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 		}
 		if v, ok := interfaceOfField.(*SearchModel); ok {
 			if len(v.Excluding) > 0 {
-				r := regexp.MustCompile(`[A-Z]`)
 				for key, val := range v.Excluding {
-					columnName = r.ReplaceAllStringFunc(key, func(m string) string {
-						out := "_" + strings.ToLower(m)
-						return out
-					})
+					index, _, columnName := GetFieldByJson(value.Type(), key)
+					if index == -1 || columnName == "" {
+						log.Panic("column name not found")
+					}
 					if len(val) > 0 {
-						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s (?)", columnName, "NOT", In))
+						format := "(?"
+						for i := 0; i < len(val)-1; i++ {
+							format += ", ?"
+						}
+						format += ")"
+						rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", columnName, format))
 						queryValues = extractArray(queryValues, val)
 					}
 				}
@@ -142,7 +145,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			if field.Len() > 0 {
 				const defaultKey = "contain"
 				if key, ok := typeOfValue.Field(i).Tag.Lookup("match"); ok {
-					if _, exist := keywordFormat[key]; exist {
+					if format, exist := keywordFormat[key]; exist {
 						searchValue = `?`
 						value2, valid := interfaceOfField.(string)
 						if !valid {
@@ -153,13 +156,16 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 						//} else if sql == "postgres" || sql == "mssql" {
 						//	value2 = EscapeStringForSelect(value2)
 						//}
-						value2 = value2 + `%`
+						value2 = func(format, s string) string {
+							return strings.Replace(format, "?", s, -1)
+						}(format, value2)
+						//value2 = value2 + `%`
 						//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
 						queryValues = append(queryValues, value2)
 					} else {
 						log.Panicf("match not support \"%v\" format\n", key)
 					}
-				} else if _, exist := keywordFormat[defaultKey]; exist {
+				} else if format, exist := keywordFormat[defaultKey]; exist {
 					searchValue = `?`
 					value2, valid := interfaceOfField.(string)
 					if !valid {
@@ -170,7 +176,10 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 					//} else if sql == "postgres" || sql == "mssql" {
 					//	value2 = EscapeStringForSelect(value2)
 					//}
-					value2 = `%` + value2 + `%`
+					//value2 = `%` + value2 + `%`
+					value2 = func(format, s string) string {
+						return strings.Replace(format, "?", s, -1)
+					}(format, value2)
 					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
 					queryValues = append(queryValues, value2)
 				} else {
