@@ -99,10 +99,14 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 		if columnNameFromSqlBuilderTag != nil {
 			columnName = *columnNameFromSqlBuilderTag
 		}
-
 		if kind == reflect.Ptr && field.IsNil() {
 			continue
-		} else if v, ok := interfaceOfField.(*SearchModel); ok {
+		}
+		if kind == reflect.Ptr {
+			field = field.Elem()
+			kind= field.Kind()
+		}
+		if v, ok := interfaceOfField.(*SearchModel); ok {
 			if len(v.Excluding) > 0 {
 				r := regexp.MustCompile(`[A-Z]`)
 				for key, val := range v.Excluding {
@@ -230,7 +234,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 }
 
 func extractArray(values []interface{}, field interface{}) []interface{} {
-	s := reflect.ValueOf(field)
+	s := reflect.Indirect(reflect.ValueOf(field))
 	for i := 0; i < s.Len(); i++ {
 		values = append(values, s.Index(i).Interface())
 	}
