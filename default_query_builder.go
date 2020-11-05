@@ -112,7 +112,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 					})
 					if len(val) > 0 {
 						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s (?)", columnName, "NOT", In))
-						queryValues = append(queryValues, val)
+						queryValues = extractArray(queryValues, val)
 					}
 				}
 			} else if len(v.Keyword) > 0 {
@@ -216,7 +216,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				}
 				format += ")"
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, In, format))
-				queryValues = append(queryValues, interfaceOfField)
+				queryValues = extractArray(queryValues, interfaceOfField)
 			}
 		} else {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Exact))
@@ -227,6 +227,14 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 		return s1 + ` WHERE ` + strings.Join(rawConditions, " AND ") + sortString, queryValues
 	}
 	return s1 + sortString, queryValues
+}
+
+func extractArray(values []interface{}, field interface{}) []interface{} {
+	s := reflect.ValueOf(field)
+	for i := 0; i < s.Len(); i++ {
+		values = append(values, s.Index(i).Interface())
+	}
+	return values
 }
 
 func BuildSort(sortString string, modelType reflect.Type) string {
