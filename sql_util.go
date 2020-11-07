@@ -69,15 +69,15 @@ func Count(db *sql.DB, sql string, values ...interface{}) (int64, error) {
 }
 
 func Query(db *sql.DB, results interface{}, modelType reflect.Type, fieldsIndex map[string]int, sql string, values ...interface{}) error {
-	rows, err1 := db.Query(sql, values...)
-	if err1 != nil {
-		return err1
+	rows, er1 := db.Query(sql, values...)
+	if er1 != nil {
+		return er1
 	}
 	defer rows.Close()
 	if fieldsIndex == nil {
-		tb, err2 := ScanSearchType(rows, modelType)
-		if err2 != nil {
-			return err2
+		tb, er2 := ScanSearchType(rows, modelType)
+		if er2 != nil {
+			return er2
 		}
 		reflect.ValueOf(results).Elem().Set(reflect.ValueOf(tb).Elem())
 	} else {
@@ -88,21 +88,21 @@ func Query(db *sql.DB, results interface{}, modelType reflect.Type, fieldsIndex 
 				fieldsIndexSelected = append(fieldsIndexSelected, index)
 			}
 		}
-		tb, err2 := ScanType(rows, modelType, fieldsIndexSelected)
-		if err2 != nil {
-			return err2
+		tb, er3 := ScanType(rows, modelType, fieldsIndexSelected)
+		if er3 != nil {
+			return er3
 		}
 		for _, element := range tb {
 			appendToArray(results, element)
 		}
 	}
-	rerr := rows.Close()
-	if rerr != nil {
-		return rerr
+	er4 := rows.Close()
+	if er4 != nil {
+		return er4
 	}
 	// Rows.Err will report the last error encountered by Rows.Scan.
-	if err := rows.Err(); err != nil {
-		return err
+	if er5 := rows.Err(); er5 != nil {
+		return er5
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func GetColumnIndexes(modelType reflect.Type, driver string) (map[string]int, er
 		ormTag := field.Tag.Get("gorm")
 		column, ok := FindTag(ormTag, "column")
 		if ok {
-			if driver == DRIVER_ORACLE {
+			if driver == DriverOracle {
 				column = strings.ToUpper(column)
 			}
 			mapp[column] = i

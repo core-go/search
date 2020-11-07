@@ -15,6 +15,7 @@ type SearchHandler struct {
 	searchService             SearchService
 	searchModelType           reflect.Type
 	LogWriter                 SearchLogWriter
+	Config                    SearchResultConfig
 	quickSearch               bool
 	isExtendedSearchModelType bool
 	Resource                  string
@@ -32,7 +33,15 @@ const (
 	MaxPageSizeDefault = 10000
 )
 
-func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, logService SearchLogWriter, quickSearch bool, resource string, userId string, embedField string) *SearchHandler {
+func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, config *SearchResultConfig, logService SearchLogWriter, quickSearch bool, resource string, userId string, embedField string) *SearchHandler {
+	var c SearchResultConfig
+	if config != nil {
+		c = *config
+	} else {
+		c.LastPage = "last"
+		c.Results = "results"
+		c.Total = "total"
+	}
 	isExtendedSearchModelType := IsExtendedFromSearchModel(searchModelType)
 	if isExtendedSearchModelType == false {
 		panic(errors.New(searchModelType.Name() + " isn't SearchModel struct nor extended from SearchModel struct!"))
@@ -42,7 +51,7 @@ func NewSearchHandler(searchService SearchService, searchModelType reflect.Type,
 	searchModelParamIndex := BuildParamIndex(reflect.TypeOf(SearchModel{}))
 	searchModelIndex := FindSearchModelIndex(searchModelType)
 
-	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField}
+	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, Config: c, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField}
 }
 
 func BuildParamIndex(searchModelType reflect.Type) map[string]int {
@@ -216,10 +225,18 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	ProcessSearchModel(searchModel, userId)
 
-	result, err := c.searchService.Search(r.Context(), searchModel)
+	models, count, err := c.searchService.Search(r.Context(), searchModel)
 	if err != nil {
 		respond(w, r, http.StatusInternalServerError, internalServerError, c.LogWriter, c.Resource, "Reject", false, err.Error())
 	} else {
+		result := make(map[string]interface{})
+		m := GetSearchModel(searchModel)
+		isLastPage := IsLastPage(models, count, m.PageIndex, m.PageSize, m.FirstPageSize)
+		if isLastPage {
+			result[c.Config.LastPage] = isLastPage
+		}
+		result[c.Config.Results] = models
+		result[c.Config.Total] = count
 		if x == -1 {
 			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
 		} else if c.quickSearch && x == 1 {
@@ -230,7 +247,7 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 				interfaceOfField := field.Interface()
 				if v, ok := interfaceOfField.(*SearchModel); ok {
 					if len(v.Fields) > 0 {
-						result1 := ToCsv(interfaceOfField, result, c.embedField)
+						result1 := ToCsv(*m, models, count, isLastPage, c.embedField)
 						succeed(w, r, http.StatusOK, result1, c.LogWriter, c.Resource, "Search")
 						return
 					}

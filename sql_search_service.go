@@ -19,6 +19,9 @@ func NewDefaultSqlSearchService(db *sql.DB, tableName string, modelType reflect.
 	searchBuilder := NewSearchResultBuilder(db, queryBuilder, modelType, mapper)
 	return &SqlSearchService{searchBuilder}
 }
-func (s *SqlSearchService) Search(ctx context.Context, m interface{}) (*SearchResult, error) {
+func NewSearchService(db *sql.DB, tableName string, modelType reflect.Type) *SqlSearchService {
+	return NewDefaultSqlSearchService(db, tableName, modelType, nil)
+}
+func (s *SqlSearchService) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	return s.SearchBuilder.BuildSearchResult(ctx, m)
 }

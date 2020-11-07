@@ -11,15 +11,15 @@ import (
 )
 
 const (
-	DRIVER_POSTGRES       = "postgres"
-	DRIVER_MYSQL          = "mysql"
-	DRIVER_MSSQL          = "mssql"
-	DRIVER_ORACLE         = "oracle"
-	DRIVER_NOT_SUPPORT    = "no support"
-	DEFAULT_PAGING_FORMAT = " LIMIT %s OFFSET %s"
-	ORACLE_PAGING_FORMAT  = " OFFSET %s ROWS FETCH NEXT %s ROWS ONLY"
-	desc                  = "DESC"
-	asc                   = "ASC"
+	DriverPostgres      = "postgres"
+	DriverMysql         = "mysql"
+	DriverMssql         = "mssql"
+	DriverOracle        = "oracle"
+	DriverNotSupport    = "no support"
+	DefaultPagingFormat = " LIMIT %s OFFSET %s"
+	OraclePagingFormat  = " OFFSET %s ROWS FETCH NEXT %s ROWS ONLY"
+	desc                = "DESC"
+	asc                 = "ASC"
 )
 
 type DefaultSearchResultBuilder struct {
@@ -35,24 +35,43 @@ func NewSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType ref
 	builder := &DefaultSearchResultBuilder{Database: db, QueryBuilder: queryBuilder, ModelType: modelType, Mapper: mapper, DriverName: driverName}
 	return builder
 }
-
-func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m interface{}) (*SearchResult, error) {
+func NewDefaultSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type) *DefaultSearchResultBuilder {
+	return NewSearchResultBuilder(db, queryBuilder, modelType, nil)
+}
+func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	sql, params := b.QueryBuilder.BuildQuery(m)
-	var searchModel *SearchModel
+	var searchModel = GetSearchModel(m)
+	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.PageIndex, searchModel.PageSize, searchModel.FirstPageSize, b.Mapper, b.DriverName)
+}
+func GetSearchModel(m interface{}) *SearchModel {
 	if sModel, ok := m.(*SearchModel); ok {
-		searchModel = sModel
+		return sModel
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				searchModel = sModel1
+				return sModel1
 			}
 		}
 	}
-	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.PageIndex, searchModel.PageSize, searchModel.FirstPageSize, b.Mapper, b.DriverName)
+	return nil
 }
+func IsLastPage(models interface{}, count int64, pageIndex int64, pageSize int64, initPageSize int64) bool {
+	lengthModels := int64(reflect.Indirect(reflect.ValueOf(models)).Len())
+	var receivedItems int64
 
+	if initPageSize > 0 {
+		if pageIndex == 1 {
+			receivedItems = initPageSize
+		} else if pageIndex > 1 {
+			receivedItems = pageSize*(pageIndex-2) + initPageSize + lengthModels
+		}
+	} else {
+		receivedItems = pageSize*(pageIndex-1) + lengthModels
+	}
+	return receivedItems >= count
+}
 func replaceParameters(sql string, number int, prefix string) string {
 	for i := 0; i < number; i++ {
 		count := i + 1
@@ -63,16 +82,16 @@ func replaceParameters(sql string, number int, prefix string) string {
 
 func BuildQueryByDriver(sql string, number int, driverName string) string {
 	switch driverName {
-	case DRIVER_POSTGRES:
+	case DriverPostgres:
 		return replaceParameters(sql, number, "$")
-	case DRIVER_ORACLE:
+	case DriverOracle:
 		return replaceParameters(sql, number, ":val")
 	default:
 		return replaceParameters(sql, number, "?")
 	}
 }
 
-func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper, driverName string) (*SearchResult, error) {
+func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper, driverName string) (interface{}, int64, error) {
 	var total int64
 	query = BuildQueryByDriver(query, len(params), driverName)
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
@@ -81,11 +100,11 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	queryCount, paramsCount := BuildCountQuery(query, params)
 	fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
 	if er12 != nil {
-		return nil, er12
+		return nil, -1, er12
 	}
 	er1 := Query(db, models, modelType, fieldsIndex, queryPaging, params...)
 	if er1 != nil {
-		return nil, er1
+		return nil, -1, er1
 	}
 	total, er2 := Count(db, queryCount, paramsCount...)
 	if er2 != nil {
@@ -111,10 +130,10 @@ func BuildPagingQuery(sql string, pageIndex int64, pageSize int64, initPageSize 
 		}
 
 		var pagingQuery string
-		if driver == DRIVER_ORACLE {
-			pagingQuery = fmt.Sprintf(ORACLE_PAGING_FORMAT, strconv.Itoa(int(offset)), strconv.Itoa(int(limit)))
+		if driver == DriverOracle {
+			pagingQuery = fmt.Sprintf(OraclePagingFormat, strconv.Itoa(int(offset)), strconv.Itoa(int(limit)))
 		} else {
-			pagingQuery = fmt.Sprintf(DEFAULT_PAGING_FORMAT, strconv.Itoa(int(limit)), strconv.Itoa(int(offset)))
+			pagingQuery = fmt.Sprintf(DefaultPagingFormat, strconv.Itoa(int(limit)), strconv.Itoa(int(offset)))
 		}
 		sql += pagingQuery
 	}
@@ -146,51 +165,32 @@ func BuildCountQuery(sql string, params []interface{}) (string, []interface{}) {
 	}
 }
 
-func BuildSearchResult(ctx context.Context, models interface{}, count int64, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper) (*SearchResult, error) {
+func BuildSearchResult(ctx context.Context, models interface{}, count int64, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper) (interface{}, int64, error) {
 	searchResult := SearchResult{}
 	searchResult.Total = count
-
-	searchResult.Last = false
-	lengthModels := int64(reflect.Indirect(reflect.ValueOf(models)).Len())
-	var receivedItems int64
-
-	if initPageSize > 0 {
-		if pageIndex == 1 {
-			receivedItems = initPageSize
-		} else if pageIndex > 1 {
-			receivedItems = pageSize*(pageIndex-2) + initPageSize + lengthModels
-		}
-	} else {
-		receivedItems = pageSize*(pageIndex-1) + lengthModels
-	}
-	searchResult.Last = receivedItems >= count
-
 	if mapper == nil {
-		searchResult.Results = models
-		return &searchResult, nil
+		return models, count, nil
 	}
 	r2, er3 := mapper.DbToModels(ctx, models)
 	if er3 != nil {
-		searchResult.Results = models
-		return &searchResult, nil
+		return models, count, nil
 	}
-	searchResult.Results = r2
-	return &searchResult, er3
+	return r2, count, er3
 }
 
 func getDriverName(db *sql.DB) string {
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*pq.Driver":
-		return DRIVER_POSTGRES
+		return DriverPostgres
 	case "*mysql.MySQLDriver":
-		return DRIVER_MYSQL
+		return DriverMysql
 	case "*mssql.Driver":
-		return DRIVER_MSSQL
+		return DriverMssql
 	case "*godror.drv":
-		return DRIVER_ORACLE
+		return DriverOracle
 	default:
-		log.Panicf(DRIVER_NOT_SUPPORT)
-		return DRIVER_NOT_SUPPORT
+		log.Panicf(DriverNotSupport)
+		return DriverNotSupport
 	}
 }
