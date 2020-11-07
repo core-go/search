@@ -1,10 +1,10 @@
 package search
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
-	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -14,11 +14,13 @@ import (
 type SearchHandler struct {
 	searchService             SearchService
 	searchModelType           reflect.Type
+	LogError                  func(context.Context, string)
 	LogWriter                 SearchLogWriter
 	Config                    SearchResultConfig
 	quickSearch               bool
 	isExtendedSearchModelType bool
 	Resource                  string
+	Action                    string
 	embedField                string
 	userId                    string
 
@@ -31,10 +33,27 @@ type SearchHandler struct {
 const (
 	PageSizeDefault    = 10
 	MaxPageSizeDefault = 10000
+	UserId             = "userId"
+	Uid                = "uid"
+	Username           = "username"
 )
-
-func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, config *SearchResultConfig, logService SearchLogWriter, quickSearch bool, resource string, userId string, embedField string) *SearchHandler {
+func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), logService SearchLogWriter) *SearchHandler {
+	return NewSearchHandlerWithFullParameters(searchService, searchModelType, logError, nil, logService, true, resource, "search", UserId, "")
+}
+func NewSearchHandlerWithUserId(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), logService SearchLogWriter, userId string) *SearchHandler {
+	return NewSearchHandlerWithFullParameters(searchService, searchModelType, logError, nil, logService, true, resource, "search", userId, "")
+}
+func NewDefaultSearchHandler(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), logService SearchLogWriter) *SearchHandler {
+	return NewSearchHandlerWithFullParameters(searchService, searchModelType, logError, nil, logService, false, resource, "search", UserId, "")
+}
+func NewSearchHandlerWithDefaultAction(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), logService SearchLogWriter, quickSearch bool, userId string) *SearchHandler {
+	return NewSearchHandlerWithFullParameters(searchService, searchModelType, logError, nil, logService, quickSearch, resource, "search", userId, "")
+}
+func NewSearchHandlerWithFullParameters(searchService SearchService, searchModelType reflect.Type, logError func(context.Context, string), config *SearchResultConfig, logService SearchLogWriter, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
 	var c SearchResultConfig
+	if len(action) == 0 {
+		action = "search"
+	}
 	if config != nil {
 		c = *config
 	} else {
@@ -51,7 +70,7 @@ func NewSearchHandler(searchService SearchService, searchModelType reflect.Type,
 	searchModelParamIndex := BuildParamIndex(reflect.TypeOf(SearchModel{}))
 	searchModelIndex := FindSearchModelIndex(searchModelType)
 
-	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, Config: c, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField}
+	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, Config: c, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, Action: action, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField, LogError: logError}
 }
 
 func BuildParamIndex(searchModelType reflect.Type) map[string]int {
@@ -192,71 +211,4 @@ func FindField(value reflect.Value, paramKey string, searchModelParamIndex map[s
 		return nil, value.Field(index)
 	}
 	return errors.New("can't find field " + paramKey), value
-}
-
-func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
-	var searchModel = CreateSearchModelObject(c.searchModelType, c.isExtendedSearchModelType)
-
-	method := r.Method
-	x := 1
-	if method == http.MethodGet {
-		ps := r.URL.Query()
-		fs := ps.Get("fields")
-		if len(fs) == 0 {
-			x = -1
-		}
-		MapParamsToSearchModel(searchModel, ps, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
-	} else if method == http.MethodPost {
-		if err := json.NewDecoder(r.Body).Decode(&searchModel); err != nil {
-			http.Error(w, "cannot decode search model: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-	}
-
-	userId := ""
-	if len(c.userId) == 0 {
-		u := r.Context().Value(c.userId)
-		if u != nil {
-			u2, ok2 := u.(string)
-			if ok2 {
-				userId = u2
-			}
-		}
-	}
-	ProcessSearchModel(searchModel, userId)
-
-	models, count, err := c.searchService.Search(r.Context(), searchModel)
-	if err != nil {
-		respond(w, r, http.StatusInternalServerError, internalServerError, c.LogWriter, c.Resource, "Reject", false, err.Error())
-	} else {
-		result := make(map[string]interface{})
-		m := GetSearchModel(searchModel)
-		isLastPage := IsLastPage(models, count, m.PageIndex, m.PageSize, m.FirstPageSize)
-		if isLastPage {
-			result[c.Config.LastPage] = isLastPage
-		}
-		result[c.Config.Results] = models
-		result[c.Config.Total] = count
-		if x == -1 {
-			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
-		} else if c.quickSearch && x == 1 {
-			value := reflect.Indirect(reflect.ValueOf(searchModel))
-			numField := value.NumField()
-			for i := 0; i < numField; i++ {
-				field := value.Field(i)
-				interfaceOfField := field.Interface()
-				if v, ok := interfaceOfField.(*SearchModel); ok {
-					if len(v.Fields) > 0 {
-						result1 := ToCsv(*m, models, count, isLastPage, c.embedField)
-						succeed(w, r, http.StatusOK, result1, c.LogWriter, c.Resource, "Search")
-						return
-					}
-				}
-			}
-			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
-			// Error(w, r, http.StatusBadRequest, errors.New("Bad request"), c.SearchLogWriter, c.Resource, "Search")
-		} else {
-			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, "Search")
-		}
-	}
 }

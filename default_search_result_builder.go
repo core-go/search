@@ -43,53 +43,6 @@ func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m in
 	var searchModel = GetSearchModel(m)
 	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.PageIndex, searchModel.PageSize, searchModel.FirstPageSize, b.Mapper, b.DriverName)
 }
-func GetSearchModel(m interface{}) *SearchModel {
-	if sModel, ok := m.(*SearchModel); ok {
-		return sModel
-	} else {
-		value := reflect.Indirect(reflect.ValueOf(m))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1
-			}
-		}
-	}
-	return nil
-}
-func IsLastPage(models interface{}, count int64, pageIndex int64, pageSize int64, initPageSize int64) bool {
-	lengthModels := int64(reflect.Indirect(reflect.ValueOf(models)).Len())
-	var receivedItems int64
-
-	if initPageSize > 0 {
-		if pageIndex == 1 {
-			receivedItems = initPageSize
-		} else if pageIndex > 1 {
-			receivedItems = pageSize*(pageIndex-2) + initPageSize + lengthModels
-		}
-	} else {
-		receivedItems = pageSize*(pageIndex-1) + lengthModels
-	}
-	return receivedItems >= count
-}
-func replaceParameters(sql string, number int, prefix string) string {
-	for i := 0; i < number; i++ {
-		count := i + 1
-		sql = strings.Replace(sql, "?", prefix+fmt.Sprintf("%v", count), 1)
-	}
-	return sql
-}
-
-func BuildQueryByDriver(sql string, number int, driverName string) string {
-	switch driverName {
-	case DriverPostgres:
-		return replaceParameters(sql, number, "$")
-	case DriverOracle:
-		return replaceParameters(sql, number, ":val")
-	default:
-		return replaceParameters(sql, number, "?")
-	}
-}
 
 func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper, driverName string) (interface{}, int64, error) {
 	var total int64
@@ -110,7 +63,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	if er2 != nil {
 		total = 0
 	}
-	return BuildSearchResult(ctx, models, total, pageIndex, pageSize, initPageSize, mapper)
+	return BuildSearchResult(ctx, models, total, mapper)
 }
 
 func BuildPagingQuery(sql string, pageIndex int64, pageSize int64, initPageSize int64, driver string) string {
@@ -165,9 +118,7 @@ func BuildCountQuery(sql string, params []interface{}) (string, []interface{}) {
 	}
 }
 
-func BuildSearchResult(ctx context.Context, models interface{}, count int64, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper) (interface{}, int64, error) {
-	searchResult := SearchResult{}
-	searchResult.Total = count
+func BuildSearchResult(ctx context.Context, models interface{}, count int64, mapper Mapper) (interface{}, int64, error) {
 	if mapper == nil {
 		return models, count, nil
 	}

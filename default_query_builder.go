@@ -249,7 +249,6 @@ func extractArray(values []interface{}, field interface{}) []interface{} {
 	}
 	return values
 }
-
 func BuildSort(sortString string, modelType reflect.Type) string {
 	var sort = make([]string, 0)
 
@@ -266,4 +265,21 @@ func BuildSort(sortString string, modelType reflect.Type) string {
 		sort = append(sort, columnName+" "+sortType)
 	}
 	return ` ORDER BY ` + strings.Join(sort, ",")
+}
+func ReplaceParameters(sql string, number int, prefix string) string {
+	for i := 0; i < number; i++ {
+		count := i + 1
+		sql = strings.Replace(sql, "?", prefix+fmt.Sprintf("%v", count), 1)
+	}
+	return sql
+}
+func BuildQueryByDriver(sql string, number int, driverName string) string {
+	switch driverName {
+	case DriverPostgres:
+		return ReplaceParameters(sql, number, "$")
+	case DriverOracle:
+		return ReplaceParameters(sql, number, ":val")
+	default:
+		return ReplaceParameters(sql, number, "?")
+	}
 }
