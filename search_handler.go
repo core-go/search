@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -75,9 +76,63 @@ func NewSearchHandlerWithParameters(searchService SearchService, searchModelType
 	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, Config: c, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, Action: action, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField, LogError: logError}
 }
 
+func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedSearchModelType bool, userIdName string, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) (interface{}, int, error) {
+	var searchModel = CreateSearchModelObject(searchModelType, isExtendedSearchModelType)
+	method := r.Method
+	x := 1
+	if method == http.MethodGet {
+		ps := r.URL.Query()
+		fs := ps.Get("fields")
+		if len(fs) == 0 {
+			x = -1
+		}
+		MapParamsToSearchModel(searchModel, ps, searchModelParamIndex, searchModelIndex, paramIndex)
+	} else if method == http.MethodPost {
+		if err := json.NewDecoder(r.Body).Decode(&searchModel); err != nil {
+			return nil, x, err
+		}
+	}
+	userId := ""
+	if len(userId) == 0 {
+		u := r.Context().Value(userIdName)
+		if u != nil {
+			u2, ok2 := u.(string)
+			if ok2 {
+				userId = u2
+			}
+		}
+	}
+	ProcessSearchModel(searchModel, userId)
+	return searchModel, x, nil
+}
+func BuildResultMap(models interface{}, count int64, m *SearchModel, config SearchResultConfig) (map[string]interface{}, bool) {
+	result := make(map[string]interface{})
+	isLastPage := IsLastPage(models, count, m.PageIndex, m.PageSize, m.FirstPageSize)
+
+	result[config.Total] = count
+	if isLastPage {
+		result[config.LastPage] = isLastPage
+	}
+	result[config.Results] = models
+	return result, isLastPage
+}
+func ResultToCsv(searchModel interface{}, m *SearchModel, models interface{}, count int64, isLastPage bool, embedField string) (string, bool) {
+	value := reflect.Indirect(reflect.ValueOf(searchModel))
+	numField := value.NumField()
+	for i := 0; i < numField; i++ {
+		field := value.Field(i)
+		interfaceOfField := field.Interface()
+		if v, ok := interfaceOfField.(*SearchModel); ok {
+			if len(v.Fields) > 0 {
+				result1 := ToCsv(*m, models, count, isLastPage, embedField)
+				return result1, true
+			}
+		}
+	}
+	return "", false
+}
 func BuildParamIndex(searchModelType reflect.Type) map[string]int {
 	params := map[string]int{}
-
 	numField := searchModelType.NumField()
 	for i := 0; i < numField; i++ {
 		field := searchModelType.Field(i)
@@ -87,7 +142,6 @@ func BuildParamIndex(searchModelType reflect.Type) map[string]int {
 			params[tagDetails[0]] = i
 		}
 	}
-
 	return params
 }
 
