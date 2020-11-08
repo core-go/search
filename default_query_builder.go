@@ -13,14 +13,13 @@ type DefaultQueryBuilder struct {
 	TableName     string
 	ModelType     reflect.Type
 	DriverName    string
-	QuestionParam bool
 }
 func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultQueryBuilder {
 	driverName := GetDriverName(db)
 	return NewQueryBuilderWithDriverName(tableName, modelType, driverName)
 }
 func NewQueryBuilderWithDriverName(tableName string, modelType reflect.Type, driverName string) *DefaultQueryBuilder {
-	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName, QuestionParam: true}
+	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName}
 }
 
 const (
@@ -124,7 +123,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 						}
 						format += ")"
 						rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", columnName, format))
-						queryValues = extractArray(queryValues, val)
+						queryValues = ExtractArray(queryValues, val)
 					}
 				}
 			} else if len(v.Keyword) > 0 {
@@ -220,7 +219,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				}
 			}
 			if len(searchValue) > 0 {
-				if !b.QuestionParam { // "postgres"
+				if b.DriverName == DriverPostgres { // "postgres"
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ILIKE`, searchValue))
 				} else {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, searchValue))
@@ -234,7 +233,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				}
 				format += ")"
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, In, format))
-				queryValues = extractArray(queryValues, interfaceOfField)
+				queryValues = ExtractArray(queryValues, interfaceOfField)
 			}
 		} else {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Exact))
@@ -242,12 +241,14 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 		}
 	}
 	if len(rawConditions) > 0 {
-		return s1 + ` WHERE ` + strings.Join(rawConditions, " AND ") + sortString, queryValues
+		s2 := s1 + ` WHERE ` + strings.Join(rawConditions, " AND ") + sortString
+		return BuildQueryByDriver(s2, len(queryValues), b.DriverName), queryValues
 	}
-	return s1 + sortString, queryValues
+	s3 := s1 + sortString
+	return BuildQueryByDriver(s3, len(queryValues), b.DriverName), queryValues
 }
 
-func extractArray(values []interface{}, field interface{}) []interface{} {
+func ExtractArray(values []interface{}, field interface{}) []interface{} {
 	s := reflect.Indirect(reflect.ValueOf(field))
 	for i := 0; i < s.Len(); i++ {
 		values = append(values, s.Index(i).Interface())
@@ -284,6 +285,6 @@ func BuildQueryByDriver(sql string, number int, driverName string) string {
 	case DriverOracle:
 		return ReplaceParameters(sql, number, ":val")
 	default:
-		return ReplaceParameters(sql, number, "?")
+		return sql
 	}
 }

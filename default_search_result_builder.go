@@ -55,7 +55,6 @@ func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m in
 
 func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper, driverName string) (interface{}, int64, error) {
 	var total int64
-	query = BuildQueryByDriver(query, len(params), driverName)
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
 	queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driverName)
