@@ -29,14 +29,23 @@ type DefaultSearchResultBuilder struct {
 	Mapper       Mapper
 	DriverName   string
 }
-
-func NewSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, mapper Mapper) *DefaultSearchResultBuilder {
-	driverName := getDriverName(db)
+func NewSearchResultBuilderWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, mapper Mapper) *DefaultSearchResultBuilder {
+	driverName := GetDriverName(db)
 	builder := &DefaultSearchResultBuilder{Database: db, QueryBuilder: queryBuilder, ModelType: modelType, Mapper: mapper, DriverName: driverName}
 	return builder
 }
-func NewDefaultSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type) *DefaultSearchResultBuilder {
-	return NewSearchResultBuilder(db, queryBuilder, modelType, nil)
+func NewSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type) *DefaultSearchResultBuilder {
+	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, nil)
+}
+func NewDefaultSearchResultBuilderWithMapper(db *sql.DB, tableName string, modelType reflect.Type, mapper Mapper) *DefaultSearchResultBuilder {
+	driverName := GetDriverName(db)
+	queryBuilder := NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, mapper)
+}
+func NewDefaultSearchResultBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultSearchResultBuilder {
+	driverName := GetDriverName(db)
+	queryBuilder := NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+	return NewSearchResultBuilder(db, queryBuilder, modelType)
 }
 func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	sql, params := b.QueryBuilder.BuildQuery(m)
@@ -129,7 +138,7 @@ func BuildSearchResult(ctx context.Context, models interface{}, count int64, map
 	return r2, count, er3
 }
 
-func getDriverName(db *sql.DB) string {
+func GetDriverName(db *sql.DB) string {
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*pq.Driver":

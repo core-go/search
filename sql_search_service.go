@@ -9,18 +9,21 @@ import (
 type SqlSearchService struct {
 	SearchBuilder SearchResultBuilder
 }
-
-func NewSqlSearchService(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, mapper Mapper) *SqlSearchService {
-	searchBuilder := NewSearchResultBuilder(db, queryBuilder, modelType, mapper)
+func NewSearchService(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type) *SqlSearchService {
+	return NewSearchServiceWithMapper(db, queryBuilder, modelType, nil)
+}
+func NewSearchServiceWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, mapper Mapper) *SqlSearchService {
+	searchBuilder := NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, mapper)
 	return &SqlSearchService{searchBuilder}
 }
-func NewDefaultSqlSearchService(db *sql.DB, tableName string, modelType reflect.Type, mapper Mapper) *SqlSearchService {
-	queryBuilder := NewQueryBuilder(tableName, modelType)
-	searchBuilder := NewSearchResultBuilder(db, queryBuilder, modelType, mapper)
+func NewDefaultSearchServiceWithMapper(db *sql.DB, tableName string, modelType reflect.Type, mapper Mapper) *SqlSearchService {
+	driverName := GetDriverName(db)
+	queryBuilder := NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+	searchBuilder := NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, mapper)
 	return &SqlSearchService{searchBuilder}
 }
-func NewSearchService(db *sql.DB, tableName string, modelType reflect.Type) *SqlSearchService {
-	return NewDefaultSqlSearchService(db, tableName, modelType, nil)
+func NewDefaultSearchService(db *sql.DB, tableName string, modelType reflect.Type) *SqlSearchService {
+	return NewDefaultSearchServiceWithMapper(db, tableName, modelType, nil)
 }
 func (s *SqlSearchService) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	return s.SearchBuilder.BuildSearchResult(ctx, m)

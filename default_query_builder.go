@@ -1,6 +1,7 @@
 package search
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"reflect"
@@ -11,11 +12,15 @@ import (
 type DefaultQueryBuilder struct {
 	TableName     string
 	ModelType     reflect.Type
+	DriverName    string
 	QuestionParam bool
 }
-
-func NewQueryBuilder(tableName string, modelType reflect.Type) *DefaultQueryBuilder {
-	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType, QuestionParam: true}
+func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultQueryBuilder {
+	driverName := GetDriverName(db)
+	return NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+}
+func NewQueryBuilderWithDriverName(tableName string, modelType reflect.Type, driverName string) *DefaultQueryBuilder {
+	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName, QuestionParam: true}
 }
 
 const (
@@ -103,7 +108,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 		}
 		if kind == reflect.Ptr {
 			field = field.Elem()
-			kind= field.Kind()
+			kind = field.Kind()
 		}
 		if v, ok := interfaceOfField.(*SearchModel); ok {
 			if len(v.Excluding) > 0 {
@@ -251,7 +256,6 @@ func extractArray(values []interface{}, field interface{}) []interface{} {
 }
 func BuildSort(sortString string, modelType reflect.Type) string {
 	var sort = make([]string, 0)
-
 	sorts := strings.Split(sortString, ",")
 	for i := 0; i < len(sorts); i++ {
 		sortField := strings.TrimSpace(sorts[i])
