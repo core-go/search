@@ -10,10 +10,11 @@ import (
 )
 
 type DefaultQueryBuilder struct {
-	TableName     string
-	ModelType     reflect.Type
-	DriverName    string
+	TableName  string
+	ModelType  reflect.Type
+	DriverName string
 }
+
 func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultQueryBuilder {
 	driverName := GetDriverName(db)
 	return NewQueryBuilderWithDriverName(tableName, modelType, driverName)
@@ -137,7 +138,21 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			dateRange.EndDate = &eDate
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
 			queryValues = append(queryValues, dateRange.EndDate)
+		} else if dateRange, ok := interfaceOfField.(*DateRange); ok && dateRange != nil {
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
+			queryValues = append(queryValues, dateRange.StartDate)
+			var eDate = dateRange.EndDate.Add(time.Hour * 24)
+			dateRange.EndDate = &eDate
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
+			queryValues = append(queryValues, dateRange.EndDate)
 		} else if dateTime, ok := interfaceOfField.(TimeRange); ok {
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
+			queryValues = append(queryValues, dateTime.StartTime)
+			var eDate = dateTime.EndTime.Add(time.Hour * 24)
+			dateTime.EndTime = &eDate
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
+			queryValues = append(queryValues, dateTime.EndTime)
+		} else if dateTime, ok := interfaceOfField.(*TimeRange); ok && dateTime != nil {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
 			queryValues = append(queryValues, dateTime.StartTime)
 			var eDate = dateTime.EndTime.Add(time.Hour * 24)
