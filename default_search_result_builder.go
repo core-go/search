@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -29,6 +28,7 @@ type DefaultSearchResultBuilder struct {
 	Mapper       Mapper
 	DriverName   string
 }
+
 func NewSearchResultBuilderWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, mapper Mapper) *DefaultSearchResultBuilder {
 	driverName := GetDriverName(db)
 	builder := &DefaultSearchResultBuilder{Database: db, QueryBuilder: queryBuilder, ModelType: modelType, Mapper: mapper, DriverName: driverName}
@@ -138,6 +138,9 @@ func BuildSearchResult(ctx context.Context, models interface{}, count int64, map
 }
 
 func GetDriverName(db *sql.DB) string {
+	if db == nil {
+		return DriverNotSupport
+	}
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*pq.Driver":
@@ -149,7 +152,6 @@ func GetDriverName(db *sql.DB) string {
 	case "*godror.drv":
 		return DriverOracle
 	default:
-		log.Panicf(DriverNotSupport)
 		return DriverNotSupport
 	}
 }
