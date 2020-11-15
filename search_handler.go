@@ -63,7 +63,12 @@ func NewJSONSearchHandler(searchService SearchService, searchModelType reflect.T
 func NewSearchHandlerWithQuickSearch(searchService SearchService, searchModelType reflect.Type, logError func(context.Context, string), logWriter SearchLogWriter, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action, user string
 	if len(options) >= 1 {
-		resource = options[0]
+		user = options[0]
+	} else {
+		user = UserId
+	}
+	if len(options) >= 2 {
+		resource = options[1]
 	} else {
 		name := searchModelType.Name()
 		if len(name) >=3 && strings.HasSuffix(name, "SM") {
@@ -71,15 +76,10 @@ func NewSearchHandlerWithQuickSearch(searchService SearchService, searchModelTyp
 		}
 		resource = BuildResourceName(name)
 	}
-	if len(options) >= 2 {
-		action = options[1]
+	if len(options) >= 3 {
+		action = options[2]
 	} else {
 		action = Search
-	}
-	if len(options) >= 3 {
-		user = options[2]
-	} else {
-		user = UserId
 	}
 	return NewSearchHandlerWithConfig(searchService, searchModelType, logError, nil, logWriter, quickSearch, resource, action, user, "")
 }
