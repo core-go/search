@@ -39,23 +39,78 @@ const (
 	Username           = "username"
 	Search             = "search"
 )
-
-func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), logService SearchLogWriter) *SearchHandler {
-	return NewSearchHandlerWithParameters(searchService, searchModelType, logError, nil, logService, true, resource, Search, UserId, "")
+func BuildResourceName(s string) string {
+	s2 := strings.ToLower(s)
+	s3 := ""
+	for i := range s {
+		if s2[i] != s[i] {
+			s3 += "-" + string(s2[i])
+		} else {
+			s3 += string(s2[i])
+		}
+	}
+	if string(s3[0]) == "-" || string(s3[0]) == "_" {
+		return s3[1:]
+	}
+	return s3
 }
-func NewSearchHandlerWithUserId(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), userId string, logService SearchLogWriter) *SearchHandler {
-	return NewSearchHandlerWithParameters(searchService, searchModelType, logError, nil, logService, true, resource, Search, userId, "")
+func NewSearchHandler(searchService SearchService, searchModelType reflect.Type, logError func(context.Context, string), logWriter SearchLogWriter, options ...string) *SearchHandler {
+	return NewSearchHandlerWithQuickSearch(searchService, searchModelType, logError, logWriter, true, options...)
 }
-func NewJSONSearchHandler(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), logService SearchLogWriter) *SearchHandler {
-	return NewSearchHandlerWithParameters(searchService, searchModelType, logError, nil, logService, false, resource, Search, UserId, "")
+func NewJSONSearchHandler(searchService SearchService, searchModelType reflect.Type, logError func(context.Context, string), logWriter SearchLogWriter, options ...string) *SearchHandler {
+	return NewSearchHandlerWithQuickSearch(searchService, searchModelType, logError, logWriter, true, options...)
 }
-func NewJSONSearchHandlerWithUserId(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), userId string, logService SearchLogWriter) *SearchHandler {
-	return NewSearchHandlerWithParameters(searchService, searchModelType, logError, nil, logService, false, resource, Search, userId, "")
+func NewSearchHandlerWithQuickSearch(searchService SearchService, searchModelType reflect.Type, logError func(context.Context, string), logWriter SearchLogWriter, quickSearch bool, options ...string) *SearchHandler {
+	var resource, action, user string
+	if len(options) >= 1 {
+		resource = options[0]
+	} else {
+		name := searchModelType.Name()
+		if len(name) >=3 && strings.HasSuffix(name, "SM") {
+			name = name[0: len(name) - 2]
+		}
+		resource = BuildResourceName(name)
+	}
+	if len(options) >= 2 {
+		action = options[1]
+	} else {
+		action = Search
+	}
+	if len(options) >= 3 {
+		user = options[2]
+	} else {
+		user = UserId
+	}
+	return NewSearchHandlerWithConfig(searchService, searchModelType, logError, nil, logWriter, quickSearch, resource, action, user, "")
 }
-func NewDefaultSearchHandler(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), userId string, quickSearch bool, logService SearchLogWriter) *SearchHandler {
-	return NewSearchHandlerWithParameters(searchService, searchModelType, logError, nil, logService, quickSearch, resource, Search, userId, "")
+func NewSearchHandlerWithUserId(searchService SearchService, searchModelType reflect.Type, userId string, logError func(context.Context, string), logWriter SearchLogWriter, options ...string) *SearchHandler {
+	return NewSearchHandlerWithUserIdAndQuickSearch(searchService, searchModelType, userId, logError, logWriter, true, options...)
 }
-func NewSearchHandlerWithParameters(searchService SearchService, searchModelType reflect.Type, logError func(context.Context, string), config *SearchResultConfig, logService SearchLogWriter, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
+func NewJSONSearchHandlerWithUserId(searchService SearchService, searchModelType reflect.Type, userId string, logError func(context.Context, string), logWriter SearchLogWriter, options ...string) *SearchHandler {
+	return NewSearchHandlerWithUserIdAndQuickSearch(searchService, searchModelType, userId, logError, logWriter, false, options...)
+}
+func NewSearchHandlerWithUserIdAndQuickSearch(searchService SearchService, searchModelType reflect.Type, userId string, logError func(context.Context, string), logWriter SearchLogWriter, quickSearch bool, options ...string) *SearchHandler {
+	var resource, action string
+	if len(options) >= 1 {
+		resource = options[0]
+	} else {
+		name := searchModelType.Name()
+		if len(name) >=3 && strings.HasSuffix(name, "SM") {
+			name = name[0: len(name) - 2]
+		}
+		resource = BuildResourceName(name)
+	}
+	if len(options) >= 2 {
+		action = options[1]
+	} else {
+		action = Search
+	}
+	return NewSearchHandlerWithConfig(searchService, searchModelType, logError, nil, logWriter, quickSearch, resource, action, userId, "")
+}
+func NewDefaultSearchHandler(searchService SearchService, searchModelType reflect.Type, resource string, logError func(context.Context, string), userId string, quickSearch bool, logWriter SearchLogWriter) *SearchHandler {
+	return NewSearchHandlerWithConfig(searchService, searchModelType, logError, nil, logWriter, quickSearch, resource, Search, userId, "")
+}
+func NewSearchHandlerWithConfig(searchService SearchService, searchModelType reflect.Type, logError func(context.Context, string), config *SearchResultConfig, logWriter SearchLogWriter, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
 	var c SearchResultConfig
 	if len(action) == 0 {
 		action = Search
@@ -76,7 +131,7 @@ func NewSearchHandlerWithParameters(searchService SearchService, searchModelType
 	searchModelParamIndex := BuildParamIndex(reflect.TypeOf(SearchModel{}))
 	searchModelIndex := FindSearchModelIndex(searchModelType)
 
-	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, Config: c, LogWriter: logService, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, Action: action, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField, LogError: logError}
+	return &SearchHandler{searchService: searchService, searchModelType: searchModelType, Config: c, LogWriter: logWriter, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, Action: action, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField, LogError: logError}
 }
 
 func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedSearchModelType bool, userIdName string, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) (interface{}, int, error) {

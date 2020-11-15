@@ -64,10 +64,10 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 	for i := 0; i < numField; i++ {
 		field := value.Field(i)
 		kind := field.Kind()
-		interfaceOfField := field.Interface()
+		x := field.Interface()
 		typeOfField := value.Type().Field(i)
 
-		if v, ok := interfaceOfField.(*SearchModel); ok {
+		if v, ok := x.(*SearchModel); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
 					i, _, columnName := GetFieldByJson(b.ModelType, key)
@@ -110,7 +110,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			field = field.Elem()
 			kind = field.Kind()
 		}
-		if v, ok := interfaceOfField.(*SearchModel); ok {
+		if v, ok := x.(*SearchModel); ok {
 			if len(v.Excluding) > 0 {
 				for key, val := range v.Excluding {
 					index, _, columnName := GetFieldByJson(value.Type(), key)
@@ -131,28 +131,28 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				keyword = strings.TrimSpace(v.Keyword)
 			}
 			continue
-		} else if dateRange, ok := interfaceOfField.(DateRange); ok {
+		} else if dateRange, ok := x.(DateRange); ok {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
 			queryValues = append(queryValues, dateRange.StartDate)
 			var eDate = dateRange.EndDate.Add(time.Hour * 24)
 			dateRange.EndDate = &eDate
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
 			queryValues = append(queryValues, dateRange.EndDate)
-		} else if dateRange, ok := interfaceOfField.(*DateRange); ok && dateRange != nil {
+		} else if dateRange, ok := x.(*DateRange); ok && dateRange != nil {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
 			queryValues = append(queryValues, dateRange.StartDate)
 			var eDate = dateRange.EndDate.Add(time.Hour * 24)
 			dateRange.EndDate = &eDate
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
 			queryValues = append(queryValues, dateRange.EndDate)
-		} else if dateTime, ok := interfaceOfField.(TimeRange); ok {
+		} else if dateTime, ok := x.(TimeRange); ok {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
 			queryValues = append(queryValues, dateTime.StartTime)
 			var eDate = dateTime.EndTime.Add(time.Hour * 24)
 			dateTime.EndTime = &eDate
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
 			queryValues = append(queryValues, dateTime.EndTime)
-		} else if dateTime, ok := interfaceOfField.(*TimeRange); ok && dateTime != nil {
+		} else if dateTime, ok := x.(*TimeRange); ok && dateTime != nil {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
 			queryValues = append(queryValues, dateTime.StartTime)
 			var eDate = dateTime.EndTime.Add(time.Hour * 24)
@@ -166,9 +166,9 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				if key, ok := typeOfValue.Field(i).Tag.Lookup("match"); ok {
 					if format, exist := keywordFormat[key]; exist {
 						searchValue = `?`
-						value2, valid := interfaceOfField.(string)
+						value2, valid := x.(string)
 						if !valid {
-							log.Panicf("invalid data \"%v\" \n", interfaceOfField)
+							log.Panicf("invalid data \"%v\" \n", x)
 						}
 						//if sql == "mysql" {
 						//	value2 = EscapeString(value2)
@@ -186,9 +186,9 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 					}
 				} else if format, exist := keywordFormat[defaultKey]; exist {
 					searchValue = `?`
-					value2, valid := interfaceOfField.(string)
+					value2, valid := x.(string)
 					if !valid {
-						log.Panicf("invalid data \"%v\" \n", interfaceOfField)
+						log.Panicf("invalid data \"%v\" \n", x)
 					}
 					//if sql == "mysql" {
 					//	value2 = EscapeString(value2)
@@ -203,9 +203,9 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 					queryValues = append(queryValues, value2)
 				} else {
 					searchValue = `?`
-					value2, valid := interfaceOfField.(string)
+					value2, valid := x.(string)
 					if !valid {
-						log.Panicf("invalid data \"%v\" \n", interfaceOfField)
+						log.Panicf("invalid data \"%v\" \n", x)
 					}
 					value2 = value2 + `%`
 					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
@@ -248,11 +248,11 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				}
 				format += ")"
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, In, format))
-				queryValues = ExtractArray(queryValues, interfaceOfField)
+				queryValues = ExtractArray(queryValues, x)
 			}
 		} else {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Exact))
-			queryValues = append(queryValues, interfaceOfField)
+			queryValues = append(queryValues, x)
 		}
 	}
 	if len(rawConditions) > 0 {
