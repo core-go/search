@@ -155,3 +155,22 @@ func GetDriverName(db *sql.DB) string {
 		return DriverNotSupport
 	}
 }
+
+func BuildParam(index int, driver string) string {
+	switch driver {
+	case DriverPostgres:
+		return "$" + strconv.Itoa(index)
+	case DriverOracle:
+		return ":val" + strconv.Itoa(index)
+	default:
+		return "?"
+	}
+}
+
+func BuildParametersFrom(i int, numCol int, driver string) string {
+	var arrValue []string
+	for j := 0; j < numCol; j++ {
+		arrValue = append(arrValue, BuildParam(i+j+1, driver))
+	}
+	return strings.Join(arrValue, ",")
+}

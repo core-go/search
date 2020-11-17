@@ -61,11 +61,14 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 	value := reflect.Indirect(reflect.ValueOf(sm))
 	typeOfValue := value.Type()
 	numField := value.NumField()
+	marker := 0
+
 	for i := 0; i < numField; i++ {
 		field := value.Field(i)
 		kind := field.Kind()
 		x := field.Interface()
 		typeOfField := value.Type().Field(i)
+		param := BuildParam(marker+1, b.DriverName)
 
 		if v, ok := x.(*SearchModel); ok {
 			if len(v.Fields) > 0 {
@@ -118,11 +121,8 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 						log.Panic("column name not found")
 					}
 					if len(val) > 0 {
-						format := "(?"
-						for i := 0; i < len(val)-1; i++ {
-							format += ", ?"
-						}
-						format += ")"
+						format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, len(val), b.DriverName))
+						marker += len(val) - 1
 						rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", columnName, format))
 						queryValues = ExtractArray(queryValues, val)
 					}
@@ -132,40 +132,44 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			}
 			continue
 		} else if dateRange, ok := x.(DateRange); ok {
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterEqualThan, param))
 			queryValues = append(queryValues, dateRange.StartDate)
 			var eDate = dateRange.EndDate.Add(time.Hour * 24)
 			dateRange.EndDate = &eDate
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterThan, param))
 			queryValues = append(queryValues, dateRange.EndDate)
+			marker += 2
 		} else if dateRange, ok := x.(*DateRange); ok && dateRange != nil {
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterEqualThan, param))
 			queryValues = append(queryValues, dateRange.StartDate)
 			var eDate = dateRange.EndDate.Add(time.Hour * 24)
 			dateRange.EndDate = &eDate
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterThan, param))
 			queryValues = append(queryValues, dateRange.EndDate)
+			marker += 2
 		} else if dateTime, ok := x.(TimeRange); ok {
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterEqualThan, param))
 			queryValues = append(queryValues, dateTime.StartTime)
 			var eDate = dateTime.EndTime.Add(time.Hour * 24)
 			dateTime.EndTime = &eDate
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterThan, param))
 			queryValues = append(queryValues, dateTime.EndTime)
+			marker += 2
 		} else if dateTime, ok := x.(*TimeRange); ok && dateTime != nil {
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, GreaterEqualThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterEqualThan, param))
 			queryValues = append(queryValues, dateTime.StartTime)
 			var eDate = dateTime.EndTime.Add(time.Hour * 24)
 			dateTime.EndTime = &eDate
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, LighterThan))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterThan, param))
 			queryValues = append(queryValues, dateTime.EndTime)
+			marker += 2
 		} else if kind == reflect.String {
-			var searchValue string
+			var searchValue bool
 			if field.Len() > 0 {
 				const defaultKey = "contain"
 				if key, ok := typeOfValue.Field(i).Tag.Lookup("match"); ok {
 					if format, exist := keywordFormat[key]; exist {
-						searchValue = `?`
+						searchValue = true
 						value2, valid := x.(string)
 						if !valid {
 							log.Panicf("invalid data \"%v\" \n", x)
@@ -185,7 +189,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 						log.Panicf("match not support \"%v\" format\n", key)
 					}
 				} else if format, exist := keywordFormat[defaultKey]; exist {
-					searchValue = `?`
+					searchValue = true
 					value2, valid := x.(string)
 					if !valid {
 						log.Panicf("invalid data \"%v\" \n", x)
@@ -202,7 +206,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
 					queryValues = append(queryValues, value2)
 				} else {
-					searchValue = `?`
+					searchValue = true
 					value2, valid := x.(string)
 					if !valid {
 						log.Panicf("invalid data \"%v\" \n", x)
@@ -226,41 +230,39 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 						} else {
 							log.Panicf("keyword not support \"%v\" format\n", key)
 						}
-						searchValue = `?`
+
 						queryValues = append(queryValues, keyword)
 					} else {
 						log.Panicf("keyword not support \"%v\" format\n", key)
 					}
 				}
 			}
-			if len(searchValue) > 0 {
+			if searchValue {
 				if b.DriverName == DriverPostgres { // "postgres"
-					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ILIKE`, searchValue))
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ILIKE`, param))
 				} else {
-					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, searchValue))
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, param))
 				}
+				marker++
 			}
 		} else if kind == reflect.Slice {
 			if field.Len() > 0 {
-				format := "(?"
-				for i := 0; i < field.Len()-1; i++ {
-					format += ", ?"
-				}
-				format += ")"
+				format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, field.Len(), b.DriverName))
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, In, format))
 				queryValues = ExtractArray(queryValues, x)
+				marker += field.Len()
 			}
 		} else {
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Exact))
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Exact, param))
 			queryValues = append(queryValues, x)
 		}
 	}
 	if len(rawConditions) > 0 {
 		s2 := s1 + ` WHERE ` + strings.Join(rawConditions, " AND ") + sortString
-		return BuildQueryByDriver(s2, len(queryValues), b.DriverName), queryValues
+		return s2, queryValues
 	}
 	s3 := s1 + sortString
-	return BuildQueryByDriver(s3, len(queryValues), b.DriverName), queryValues
+	return s3, queryValues
 }
 
 func ExtractArray(values []interface{}, field interface{}) []interface{} {
