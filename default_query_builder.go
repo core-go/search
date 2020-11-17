@@ -27,6 +27,7 @@ const (
 	Exact            = "="
 	Like             = "LIKE"
 	GreaterEqualThan = ">="
+	GreaterThan      = ">"
 	LighterEqualThan = "<="
 	LighterThan      = "<"
 	In               = "IN"
@@ -163,6 +164,44 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterThan, param))
 			queryValues = append(queryValues, dateTime.EndTime)
 			marker += 2
+		} else if numberRange, ok := x.(NumberRange); ok {
+			if numberRange.Min != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterEqualThan, param))
+				queryValues = append(queryValues, numberRange.Min)
+				marker++
+			} else if numberRange.Lower != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterThan, param))
+				queryValues = append(queryValues, numberRange.Lower)
+				marker++
+			}
+			if numberRange.Max != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterEqualThan, param))
+				queryValues = append(queryValues, numberRange.Max)
+				marker++
+			} else if numberRange.Upper != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterThan, param))
+				queryValues = append(queryValues, numberRange.Upper)
+				marker++
+			}
+		} else if numberRange, ok := x.(*NumberRange); ok && numberRange != nil {
+			if numberRange.Min != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterEqualThan, param))
+				queryValues = append(queryValues, numberRange.Min)
+				marker++
+			} else if numberRange.Lower != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterThan, param))
+				queryValues = append(queryValues, numberRange.Lower)
+				marker++
+			}
+			if numberRange.Max != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterEqualThan, param))
+				queryValues = append(queryValues, numberRange.Max)
+				marker++
+			} else if numberRange.Upper != nil {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, LighterThan, param))
+				queryValues = append(queryValues, numberRange.Upper)
+				marker++
+			}
 		} else if kind == reflect.String {
 			var searchValue bool
 			if field.Len() > 0 {
