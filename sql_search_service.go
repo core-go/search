@@ -9,6 +9,7 @@ import (
 type SqlSearchService struct {
 	SearchBuilder SearchResultBuilder
 }
+
 func NewSearchService(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type) *SqlSearchService {
 	return NewSearchServiceWithMapper(db, queryBuilder, modelType, nil)
 }
@@ -18,7 +19,7 @@ func NewSearchServiceWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType
 }
 func NewDefaultSearchServiceWithMapper(db *sql.DB, tableName string, modelType reflect.Type, mapper Mapper) *SqlSearchService {
 	driverName := GetDriverName(db)
-	queryBuilder := NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
 	searchBuilder := NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, mapper)
 	return &SqlSearchService{searchBuilder}
 }

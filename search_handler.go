@@ -39,6 +39,7 @@ const (
 	Username           = "username"
 	Search             = "search"
 )
+
 func BuildResourceName(s string) string {
 	s2 := strings.ToLower(s)
 	s3 := ""
@@ -71,8 +72,8 @@ func NewSearchHandlerWithQuickSearch(searchService SearchService, searchModelTyp
 		resource = options[1]
 	} else {
 		name := searchModelType.Name()
-		if len(name) >=3 && strings.HasSuffix(name, "SM") {
-			name = name[0: len(name) - 2]
+		if len(name) >= 3 && strings.HasSuffix(name, "SM") {
+			name = name[0 : len(name)-2]
 		}
 		resource = BuildResourceName(name)
 	}
@@ -95,8 +96,8 @@ func NewSearchHandlerWithUserIdAndQuickSearch(searchService SearchService, searc
 		resource = options[0]
 	} else {
 		name := searchModelType.Name()
-		if len(name) >=3 && strings.HasSuffix(name, "SM") {
-			name = name[0: len(name) - 2]
+		if len(name) >= 3 && strings.HasSuffix(name, "SM") {
+			name = name[0 : len(name)-2]
 		}
 		resource = BuildResourceName(name)
 	}
@@ -163,9 +164,9 @@ func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedS
 	ProcessSearchModel(searchModel, userId)
 	return searchModel, x, nil
 }
-func BuildResultMap(models interface{}, count int64, m *SearchModel, config SearchResultConfig) (map[string]interface{}, bool) {
+func BuildResultMap(models interface{}, count int64, pageIndex int64, pageSize int64, firstPageSize int64, config SearchResultConfig) (map[string]interface{}, bool) {
 	result := make(map[string]interface{})
-	isLastPage := IsLastPage(models, count, m.PageIndex, m.PageSize, m.FirstPageSize)
+	isLastPage := IsLastPage(models, count, pageIndex, pageSize, firstPageSize)
 
 	result[config.Total] = count
 	if isLastPage {
@@ -182,7 +183,7 @@ func ResultToCsv(searchModel interface{}, m *SearchModel, models interface{}, co
 		interfaceOfField := field.Interface()
 		if v, ok := interfaceOfField.(*SearchModel); ok {
 			if len(v.Fields) > 0 {
-				result1 := ToCsv(*m, models, count, isLastPage, embedField)
+				result1 := ToCsv(m.Fields, models, count, isLastPage, embedField)
 				return result1, true
 			}
 		}

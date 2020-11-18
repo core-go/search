@@ -13,8 +13,9 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		respondError(w, r, http.StatusInternalServerError, InternalServerError, c.LogError, c.Resource, "search", err, c.LogWriter)
 		return
 	}
+	_, pageIndex, pageSize, firstPageSize, err := ExtractSearchInfo(searchModel)
 	m := GetSearchModel(searchModel)
-	result, isLastPage := BuildResultMap(models, count, m, c.Config)
+	result, isLastPage := BuildResultMap(models, count, pageIndex, pageSize, firstPageSize, c.Config)
 	if x == -1 {
 		succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, c.Action)
 	} else if c.quickSearch && x == 1 {

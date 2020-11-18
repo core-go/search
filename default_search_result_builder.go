@@ -39,12 +39,12 @@ func NewSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType ref
 }
 func NewDefaultSearchResultBuilderWithMapper(db *sql.DB, tableName string, modelType reflect.Type, mapper Mapper) *DefaultSearchResultBuilder {
 	driverName := GetDriverName(db)
-	queryBuilder := NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
 	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, mapper)
 }
 func NewDefaultSearchResultBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultSearchResultBuilder {
 	driverName := GetDriverName(db)
-	queryBuilder := NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
 	return NewSearchResultBuilder(db, queryBuilder, modelType)
 }
 func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m interface{}) (interface{}, int64, error) {

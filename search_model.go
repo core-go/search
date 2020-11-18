@@ -29,3 +29,17 @@ func IsExtendedFromSearchModel(searchModelType reflect.Type) bool {
 	}
 	return false
 }
+func GetSearchModel(m interface{}) *SearchModel {
+	if sModel, ok := m.(*SearchModel); ok {
+		return sModel
+	} else {
+		value := reflect.Indirect(reflect.ValueOf(m))
+		numField := value.NumField()
+		for i := 0; i < numField; i++ {
+			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
+				return sModel1
+			}
+		}
+	}
+	return nil
+}

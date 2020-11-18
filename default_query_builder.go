@@ -2,6 +2,7 @@ package search
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -17,9 +18,9 @@ type DefaultQueryBuilder struct {
 
 func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultQueryBuilder {
 	driverName := GetDriverName(db)
-	return NewQueryBuilderWithDriverName(tableName, modelType, driverName)
+	return NewDefaultQueryBuilder(tableName, modelType, driverName)
 }
-func NewQueryBuilderWithDriverName(tableName string, modelType reflect.Type, driverName string) *DefaultQueryBuilder {
+func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName string) *DefaultQueryBuilder {
 	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName}
 }
 
@@ -44,8 +45,10 @@ func GetColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	}
 	return nil
 }
-
 func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{}) {
+	return BuildQuery(sm, b.TableName, b.ModelType, b.DriverName)
+}
+func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driverName string) (string, []interface{}) {
 	s1 := ""
 	rawConditions := make([]string, 0)
 	queryValues := make([]interface{}, 0)
@@ -69,12 +72,12 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 		kind := field.Kind()
 		x := field.Interface()
 		typeOfField := value.Type().Field(i)
-		param := BuildParam(marker+1, b.DriverName)
+		param := BuildParam(marker+1, driverName)
 
 		if v, ok := x.(*SearchModel); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
-					i, _, columnName := GetFieldByJson(b.ModelType, key)
+					i, _, columnName := GetFieldByJson(modelType, key)
 					if len(columnName) < 0 {
 						fields = fields[len(fields):]
 						break
@@ -85,23 +88,23 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				}
 			}
 			if len(fields) > 0 {
-				s1 = `SELECT ` + strings.Join(fields, ",") + ` FROM ` + b.TableName
+				s1 = `SELECT ` + strings.Join(fields, ",") + ` FROM ` + tableName
 			} else {
-				columns := GetColumnsSelect(b.ModelType)
+				columns := GetColumnsSelect(modelType)
 				if len(columns) > 0 {
-					s1 = `SELECT  ` + strings.Join(columns, ",") + ` FROM ` + b.TableName
+					s1 = `SELECT  ` + strings.Join(columns, ",") + ` FROM ` + tableName
 				} else {
-					s1 = `SELECT * FROM ` + b.TableName
+					s1 = `SELECT * FROM ` + tableName
 				}
 			}
 			if len(v.Sort) > 0 {
-				sortString = BuildSort(v.Sort, b.ModelType)
+				sortString = BuildSort(v.Sort, modelType)
 			}
 		}
 
 		columnName, existCol := GetColumnName(value.Type(), typeOfField.Name)
 		if !existCol {
-			columnName, _ = GetColumnName(b.ModelType, typeOfField.Name)
+			columnName, _ = GetColumnName(modelType, typeOfField.Name)
 		}
 		columnNameFromSqlBuilderTag := GetColumnNameFromSqlBuilderTag(typeOfField)
 		if columnNameFromSqlBuilderTag != nil {
@@ -122,7 +125,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 						log.Panic("column name not found")
 					}
 					if len(val) > 0 {
-						format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, len(val), b.DriverName))
+						format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, len(val), driverName))
 						marker += len(val) - 1
 						rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", columnName, format))
 						queryValues = ExtractArray(queryValues, val)
@@ -277,7 +280,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 				}
 			}
 			if searchValue {
-				if b.DriverName == DriverPostgres { // "postgres"
+				if driverName == DriverPostgres { // "postgres"
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ILIKE`, param))
 				} else {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, param))
@@ -286,7 +289,7 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{})
 			}
 		} else if kind == reflect.Slice {
 			if field.Len() > 0 {
-				format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, field.Len(), b.DriverName))
+				format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, field.Len(), driverName))
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, In, format))
 				queryValues = ExtractArray(queryValues, x)
 				marker += field.Len()
@@ -342,5 +345,19 @@ func BuildQueryByDriver(sql string, number int, driverName string) string {
 		return ReplaceParameters(sql, number, ":val")
 	default:
 		return sql
+	}
+}
+func ExtractSearchInfo(m interface{}) (string, int64, int64, int64, error) {
+	if sModel, ok := m.(*SearchModel); ok {
+		return sModel.Sort, sModel.PageIndex, sModel.PageSize, sModel.FirstPageSize, nil
+	} else {
+		value := reflect.Indirect(reflect.ValueOf(m))
+		numField := value.NumField()
+		for i := 0; i < numField; i++ {
+			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
+				return sModel1.Sort, sModel1.PageIndex, sModel1.PageSize, sModel1.FirstPageSize, nil
+			}
+		}
+		return "", 0, 0, 0, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }
