@@ -25,12 +25,12 @@ func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName
 
 const (
 	Exact            = "="
-	Like             = "LIKE"
+	Like             = "like"
 	GreaterEqualThan = ">="
 	GreaterThan      = ">"
 	LighterEqualThan = "<="
 	LighterThan      = "<"
-	In               = "IN"
+	In               = "in"
 )
 
 func GetColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
@@ -87,13 +87,13 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 				}
 			}
 			if len(fields) > 0 {
-				s1 = `SELECT ` + strings.Join(fields, ",") + ` FROM ` + tableName
+				s1 = `select ` + strings.Join(fields, ",") + ` from ` + tableName
 			} else {
 				columns := GetColumnsSelect(modelType)
 				if len(columns) > 0 {
-					s1 = `SELECT  ` + strings.Join(columns, ",") + ` FROM ` + tableName
+					s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
 				} else {
-					s1 = `SELECT * FROM ` + tableName
+					s1 = `select * from ` + tableName
 				}
 			}
 			if len(v.Sort) > 0 {
@@ -299,7 +299,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 		}
 	}
 	if len(rawConditions) > 0 {
-		s2 := s1 + ` WHERE ` + strings.Join(rawConditions, " AND ") + sortString
+		s2 := s1 + ` where ` + strings.Join(rawConditions, " AND ") + sortString
 		return s2, queryValues
 	}
 	s3 := s1 + sortString
@@ -327,7 +327,7 @@ func BuildSort(sortString string, modelType reflect.Type) string {
 		sortType := GetSortType(c)
 		sort = append(sort, columnName+" "+sortType)
 	}
-	return ` ORDER BY ` + strings.Join(sort, ",")
+	return ` order by ` + strings.Join(sort, ",")
 }
 func ReplaceParameters(sql string, number int, prefix string) string {
 	for i := 0; i < number; i++ {

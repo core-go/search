@@ -15,10 +15,10 @@ const (
 	DriverMssql         = "mssql"
 	DriverOracle        = "oracle"
 	DriverNotSupport    = "no support"
-	DefaultPagingFormat = " LIMIT %s OFFSET %s"
-	OraclePagingFormat  = " OFFSET %s ROWS FETCH NEXT %s ROWS ONLY"
-	desc                = "DESC"
-	asc                 = "ASC"
+	DefaultPagingFormat = " limit %s offset %s "
+	OraclePagingFormat  = " offset %s rows fetch next %s rows only "
+	desc                = "desc"
+	asc                 = "asc"
 )
 
 type DefaultSearchResultBuilder struct {
@@ -61,23 +61,50 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	var total int64
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driverName)
-	queryCount, paramsCount := BuildCountQuery(query, params)
-	fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
-	if er12 != nil {
-		return nil, -1, er12
+	if driverName == DriverOracle {
+		queryPaging := BuildPagingQueryByDriver(query, pageIndex, pageSize, initPageSize, driverName)
+		fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
+		if er12 != nil {
+			return nil, -1, er12
+		}
+		er1 := Query(db, models, modelType, fieldsIndex, queryPaging, params...)
+		if er1 != nil {
+			return nil, -1, er1
+		}
+		return BuildSearchResult(ctx, models, total, mapper)
+	} else {
+		queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driverName)
+		queryCount, paramsCount := BuildCountQuery(query, params)
+		fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
+		if er12 != nil {
+			return nil, -1, er12
+		}
+		er1 := Query(db, models, modelType, fieldsIndex, queryPaging, params...)
+		if er1 != nil {
+			return nil, -1, er1
+		}
+		total, er2 := Count(db, queryCount, paramsCount...)
+		if er2 != nil {
+			total = 0
+		}
+		return BuildSearchResult(ctx, models, total, mapper)
 	}
-	er1 := Query(db, models, modelType, fieldsIndex, queryPaging, params...)
-	if er1 != nil {
-		return nil, -1, er1
-	}
-	total, er2 := Count(db, queryCount, paramsCount...)
-	if er2 != nil {
-		total = 0
-	}
-	return BuildSearchResult(ctx, models, total, mapper)
 }
-
+func BuildPagingQueryByDriver(sql string, pageIndex int64, pageSize int64, initPageSize int64, driver string) string {
+	s2 := BuildPagingQuery(sql, pageIndex, pageSize, initPageSize, driver)
+	if driver != DriverOracle {
+		return s2
+	} else {
+		i := strings.Index(s2, "select")
+		if i < 0 {
+			i = strings.Index(s2, "SELECT")
+		}
+		if i >= 0 {
+			return s2[0:i+7] + " count(*) over() as total, " + s2[i+7:]
+		}
+		return s2
+	}
+}
 func BuildPagingQuery(sql string, pageIndex int64, pageSize int64, initPageSize int64, driver string) string {
 	if pageSize > 0 {
 		var limit, offset int64
@@ -107,25 +134,25 @@ func BuildPagingQuery(sql string, pageIndex int64, pageSize int64, initPageSize 
 }
 
 func BuildCountQuery(sql string, params []interface{}) (string, []interface{}) {
-	i := strings.Index(sql, "SELECT ")
+	i := strings.Index(sql, "select ")
 	if i < 0 {
 		return sql, params
 	}
-	j := strings.Index(sql, " FROM ")
+	j := strings.Index(sql, " from ")
 	if j < 0 {
 		return sql, params
 	}
-	k := strings.Index(sql, " ORDER BY ")
-	h := strings.Index(sql, " DISTINCT ")
+	k := strings.Index(sql, " order by ")
+	h := strings.Index(sql, " distinct ")
 	if h > 0 {
-		sql3 := `SELECT count(*) as total FROM (` + sql[i:] + `) as main`
+		sql3 := `select count(*) as total from (` + sql[i:] + `) as main`
 		return sql3, params
 	}
 	if k > 0 {
-		sql3 := `SELECT count(*) as total ` + sql[j:k]
+		sql3 := `select count(*) as total ` + sql[j:k]
 		return sql3, params
 	} else {
-		sql3 := `SELECT count(*) as total ` + sql[j:]
+		sql3 := `select count(*) as total ` + sql[j:]
 		return sql3, params
 	}
 }
