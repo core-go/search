@@ -175,20 +175,13 @@ func BuildResultMap(models interface{}, count int64, pageIndex int64, pageSize i
 	result[config.Results] = models
 	return result, isLastPage
 }
-func ResultToCsv(searchModel interface{}, m *SearchModel, models interface{}, count int64, isLastPage bool, embedField string) (string, bool) {
-	value := reflect.Indirect(reflect.ValueOf(searchModel))
-	numField := value.NumField()
-	for i := 0; i < numField; i++ {
-		field := value.Field(i)
-		interfaceOfField := field.Interface()
-		if v, ok := interfaceOfField.(*SearchModel); ok {
-			if len(v.Fields) > 0 {
-				result1 := ToCsv(m.Fields, models, count, isLastPage, embedField)
-				return result1, true
-			}
-		}
+func ResultToCsv(fields []string, models interface{}, count int64, isLastPage bool, embedField string) (string, bool) {
+	if len(fields) > 0 {
+		result1 := ToCsv(fields, models, count, isLastPage, embedField)
+		return result1, true
+	} else {
+		return "", false
 	}
-	return "", false
 }
 func BuildParamIndex(searchModelType reflect.Type) map[string]int {
 	params := map[string]int{}

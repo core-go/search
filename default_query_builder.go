@@ -2,7 +2,6 @@ package search
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -345,19 +344,5 @@ func BuildQueryByDriver(sql string, number int, driverName string) string {
 		return ReplaceParameters(sql, number, ":val")
 	default:
 		return sql
-	}
-}
-func ExtractSearchInfo(m interface{}) (string, int64, int64, int64, error) {
-	if sModel, ok := m.(*SearchModel); ok {
-		return sModel.Sort, sModel.PageIndex, sModel.PageSize, sModel.FirstPageSize, nil
-	} else {
-		value := reflect.Indirect(reflect.ValueOf(m))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.Sort, sModel1.PageIndex, sModel1.PageSize, sModel1.FirstPageSize, nil
-			}
-		}
-		return "", 0, 0, 0, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }

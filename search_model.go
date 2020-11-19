@@ -1,6 +1,9 @@
 package search
 
-import "reflect"
+import (
+	"errors"
+	"reflect"
+)
 
 type SearchModel struct {
 	PageIndex     int64                    `mapstructure:"page_index" json:"pageIndex,omitempty" gorm:"column:pageindex" bson:"pageIndex,omitempty" dynamodbav:"pageIndex,omitempty" firestore:"pageIndex,omitempty"`
@@ -42,4 +45,18 @@ func GetSearchModel(m interface{}) *SearchModel {
 		}
 	}
 	return nil
+}
+func ExtractSearch(m interface{}) (int64, int64, int64, error) {
+	if sModel, ok := m.(*SearchModel); ok {
+		return sModel.PageIndex, sModel.PageSize, sModel.FirstPageSize, nil
+	} else {
+		value := reflect.Indirect(reflect.ValueOf(m))
+		numField := value.NumField()
+		for i := 0; i < numField; i++ {
+			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
+				return sModel1.PageIndex, sModel1.PageSize, sModel1.FirstPageSize, nil
+			}
+		}
+		return 0, 0, 0, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
+	}
 }

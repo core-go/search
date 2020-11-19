@@ -22,35 +22,39 @@ const (
 )
 
 type DefaultSearchResultBuilder struct {
-	Database     *sql.DB
-	QueryBuilder QueryBuilder
-	ModelType    reflect.Type
-	Mapper       Mapper
-	DriverName   string
+	Database      *sql.DB
+	QueryBuilder  QueryBuilder
+	ModelType     reflect.Type
+	extractSearch func(m interface{}) (int64, int64, int64, error)
+	Mapper        Mapper
+	DriverName    string
 }
 
-func NewSearchResultBuilderWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, mapper Mapper) *DefaultSearchResultBuilder {
+func NewSearchResultBuilderWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error), mapper Mapper) *DefaultSearchResultBuilder {
 	driverName := GetDriverName(db)
-	builder := &DefaultSearchResultBuilder{Database: db, QueryBuilder: queryBuilder, ModelType: modelType, Mapper: mapper, DriverName: driverName}
+	builder := &DefaultSearchResultBuilder{Database: db, QueryBuilder: queryBuilder, ModelType: modelType, extractSearch: extractSearch, Mapper: mapper, DriverName: driverName}
 	return builder
 }
 func NewSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type) *DefaultSearchResultBuilder {
-	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, nil)
+	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, ExtractSearch, nil)
 }
-func NewDefaultSearchResultBuilderWithMapper(db *sql.DB, tableName string, modelType reflect.Type, mapper Mapper) *DefaultSearchResultBuilder {
+func NewDefaultSearchResultBuilderWithMapper(db *sql.DB, tableName string, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error), mapper Mapper) *DefaultSearchResultBuilder {
 	driverName := GetDriverName(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
-	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, mapper)
+	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, extractSearch, mapper)
 }
-func NewDefaultSearchResultBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultSearchResultBuilder {
+func NewDefaultSearchResultBuilder(db *sql.DB, tableName string, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error)) *DefaultSearchResultBuilder {
 	driverName := GetDriverName(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
-	return NewSearchResultBuilder(db, queryBuilder, modelType)
+	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, extractSearch, nil)
 }
 func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	sql, params := b.QueryBuilder.BuildQuery(m)
-	var searchModel = GetSearchModel(m)
-	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, searchModel.PageIndex, searchModel.PageSize, searchModel.FirstPageSize, b.Mapper, b.DriverName)
+	pageIndex, pageSize, firstPageSize, err := b.extractSearch(m)
+	if err != nil {
+		return nil, 0, err
+	}
+	return BuildFromQuery(ctx, b.Database, b.ModelType, sql, params, pageIndex, pageSize, firstPageSize, b.Mapper, b.DriverName)
 }
 
 func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, query string, params []interface{}, pageIndex int64, pageSize int64, initPageSize int64, mapper Mapper, driverName string) (interface{}, int64, error) {
