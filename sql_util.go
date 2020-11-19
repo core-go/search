@@ -68,12 +68,14 @@ func Count(db *sql.DB, sql string, values ...interface{}) (int64, error) {
 	return total, nil
 }
 
-func Query(db *sql.DB, results interface{}, modelType reflect.Type, fieldsIndex map[string]int, sql string, values ...interface{}) error {
+func Query(db *sql.DB, results interface{}, fieldsIndex map[string]int, sql string, values ...interface{}) error {
 	rows, er1 := db.Query(sql, values...)
 	if er1 != nil {
 		return er1
 	}
 	defer rows.Close()
+	modelType := reflect.TypeOf(results).Elem().Elem()
+
 	if fieldsIndex == nil {
 		tb, er2 := ScanSearchType(rows, modelType)
 		if er2 != nil {

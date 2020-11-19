@@ -67,7 +67,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 		if er12 != nil {
 			return nil, -1, er12
 		}
-		er1 := Query(db, models, modelType, fieldsIndex, queryPaging, params...)
+		er1 := Query(db, models, fieldsIndex, queryPaging, params...)
 		if er1 != nil {
 			return nil, -1, er1
 		}
@@ -79,7 +79,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 		if er12 != nil {
 			return nil, -1, er12
 		}
-		er1 := Query(db, models, modelType, fieldsIndex, queryPaging, params...)
+		er1 := Query(db, models, fieldsIndex, queryPaging, params...)
 		if er1 != nil {
 			return nil, -1, er1
 		}

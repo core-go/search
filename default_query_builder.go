@@ -280,7 +280,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			}
 			if searchValue {
 				if driverName == DriverPostgres { // "postgres"
-					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ILIKE`, param))
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ilike`, param))
 				} else {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, param))
 				}
