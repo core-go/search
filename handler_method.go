@@ -1,10 +1,6 @@
 package search
 
-import (
-	"errors"
-	"net/http"
-	"reflect"
-)
+import "net/http"
 
 func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	searchModel, x, err := BuildSearchModel(r, c.searchModelType, c.isExtendedSearchModelType, c.userId, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
@@ -17,7 +13,7 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		respondError(w, r, http.StatusInternalServerError, InternalServerError, c.LogError, c.Resource, "search", err, c.LogWriter)
 		return
 	}
-	pageIndex, pageSize, firstPageSize, fs, err := ExtractSearch2(searchModel)
+	pageIndex, pageSize, firstPageSize, fs, err := ExtractFullSearch(searchModel)
 	result, isLastPage := BuildResultMap(models, count, pageIndex, pageSize, firstPageSize, c.Config)
 	if x == -1 {
 		succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, c.Action)
@@ -30,19 +26,5 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, c.Action)
-	}
-}
-func ExtractSearch2(m interface{}) (int64, int64, int64, []string, error) {
-	if sModel, ok := m.(*SearchModel); ok {
-		return sModel.PageIndex, sModel.PageSize, sModel.FirstPageSize, sModel.Fields, nil
-	} else {
-		value := reflect.Indirect(reflect.ValueOf(m))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.PageIndex, sModel1.PageSize, sModel1.FirstPageSize, sModel1.Fields, nil
-			}
-		}
-		return 0, 0, 0, nil, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }
