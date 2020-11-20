@@ -81,7 +81,9 @@ func Query(db *sql.DB, results interface{}, fieldsIndex map[string]int, sql stri
 		if er2 != nil {
 			return er2
 		}
-		reflect.ValueOf(results).Elem().Set(reflect.ValueOf(tb).Elem())
+		if tb != nil {
+			reflect.ValueOf(results).Elem().Set(reflect.ValueOf(tb).Elem())
+		}
 	} else {
 		columns, _ := rows.Columns()
 		fieldsIndexSelected := make([]int, 0)
@@ -97,6 +99,38 @@ func Query(db *sql.DB, results interface{}, fieldsIndex map[string]int, sql stri
 		for _, element := range tb {
 			appendToArray(results, element)
 		}
+	}
+	er4 := rows.Close()
+	if er4 != nil {
+		return er4
+	}
+	// Rows.Err will report the last error encountered by Rows.Scan.
+	if er5 := rows.Err(); er5 != nil {
+		return er5
+	}
+	return nil
+}
+
+func QueryAndCount(db *sql.DB, results interface{}, count *int64, driverName string, sql string, values ...interface{}) error {
+	rows, er1 := db.Query(sql, values...)
+	if er1 != nil {
+		return er1
+	}
+	defer rows.Close()
+	modelType := reflect.TypeOf(results).Elem().Elem()
+
+	fieldsIndex, er0 := GetColumnIndexes(modelType, driverName)
+	if er0 != nil {
+		return er0
+	}
+
+	tb, c, er2 := ScansSearchAndCount(rows, modelType, fieldsIndex)
+	*count = c
+	if er2 != nil {
+		return er2
+	}
+	for _, element := range tb {
+		appendToArray(results, element)
 	}
 	er4 := rows.Close()
 	if er4 != nil {
@@ -187,6 +221,47 @@ func ScanSearchType(rows *sql.Rows, modelType reflect.Type) (t []interface{}, er
 
 	return
 }
+
+func ScansSearchAndCount(rows *sql.Rows, modelType reflect.Type, fieldsIndex map[string]int) ([]interface{}, int64, error) {
+	var t []interface{}
+	columns, er0 := rows.Columns()
+	if er0 != nil {
+		return nil, 0, er0
+	}
+	var count int64
+	for rows.Next() {
+		initModel := reflect.New(modelType).Interface()
+		var c []interface{}
+		c = append(c, &count)
+		c = append(c, StructScanWithIgnore(initModel, fieldsIndex, columns, 0)...)
+		if err := rows.Scan(c...); err == nil {
+			t = append(t, initModel)
+		}
+	}
+	return t, count, nil
+}
+
+// StructScan : transfer struct to slice for scan
+func StructScanWithIgnore(s interface{}, fieldsIndex map[string]int, columns []string, indexIgnore int) (r []interface{}) {
+	if s != nil {
+		maps := reflect.Indirect(reflect.ValueOf(s))
+		fieldsIndexSelected := make([]int, 0)
+		for i, columnsName := range columns {
+			if i == indexIgnore {
+				continue
+			}
+			if index, ok := fieldsIndex[columnsName]; ok {
+				fieldsIndexSelected = append(fieldsIndexSelected, index)
+				r = append(r, maps.Field(index).Addr().Interface())
+			} else {
+				var t interface{}
+				r = append(r, &t)
+			}
+		}
+	}
+	return
+}
+
 func StructSearchScan(s interface{}) (r []interface{}) {
 	if s != nil {
 		vals := reflect.Indirect(reflect.ValueOf(s))

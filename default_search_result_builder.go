@@ -63,11 +63,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	models := reflect.New(modelsType).Interface()
 	if driverName == DriverOracle {
 		queryPaging := BuildPagingQueryByDriver(query, pageIndex, pageSize, initPageSize, driverName)
-		fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
-		if er12 != nil {
-			return nil, -1, er12
-		}
-		er1 := Query(db, models, fieldsIndex, queryPaging, params...)
+		er1 := QueryAndCount(db, models, &total, driverName, queryPaging, params...)
 		if er1 != nil {
 			return nil, -1, er1
 		}
