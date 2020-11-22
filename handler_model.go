@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-func ProcessSearchModel(sm interface{}, currentUserId string) {
+func SetUserId(sm interface{}, currentUserId string) {
 	if s, ok := sm.(*SearchModel); ok { // Is SearchModel struct
 		RepairSearchModel(s, currentUserId)
 	} else { // Is extended from SearchModel struct
@@ -20,7 +20,7 @@ func ProcessSearchModel(sm interface{}, currentUserId string) {
 		}
 	}
 }
-func CreateSearchModelObject(searchModelType reflect.Type, isExtendedSearchModelType bool) interface{} {
+func CreateSearchModel(searchModelType reflect.Type, isExtendedSearchModelType bool) interface{} {
 	var searchModel = reflect.New(searchModelType).Interface()
 	if isExtendedSearchModelType {
 		value := reflect.Indirect(reflect.ValueOf(searchModel))

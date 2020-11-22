@@ -26,7 +26,7 @@ func BuildResourceName(s string) string {
 	}
 	return s3
 }
-func MapParamsToSearchModel(searchModel interface{}, params url.Values, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) interface{} {
+func UrlToModel(searchModel interface{}, params url.Values, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) interface{} {
 	value := reflect.Indirect(reflect.ValueOf(searchModel))
 	if value.Kind() == reflect.Ptr {
 		value = reflect.Indirect(value)
@@ -100,7 +100,7 @@ func BuildParamIndex(searchModelType reflect.Type) map[string]int {
 }
 
 func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedSearchModelType bool, userIdName string, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) (interface{}, int, error) {
-	var searchModel = CreateSearchModelObject(searchModelType, isExtendedSearchModelType)
+	var searchModel = CreateSearchModel(searchModelType, isExtendedSearchModelType)
 	method := r.Method
 	x := 1
 	if method == http.MethodGet {
@@ -109,7 +109,7 @@ func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedS
 		if len(fs) == 0 {
 			x = -1
 		}
-		MapParamsToSearchModel(searchModel, ps, searchModelParamIndex, searchModelIndex, paramIndex)
+		UrlToModel(searchModel, ps, searchModelParamIndex, searchModelIndex, paramIndex)
 	} else if method == http.MethodPost {
 		if err := json.NewDecoder(r.Body).Decode(&searchModel); err != nil {
 			return nil, x, err
@@ -125,7 +125,7 @@ func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedS
 			}
 		}
 	}
-	ProcessSearchModel(searchModel, userId)
+	SetUserId(searchModel, userId)
 	return searchModel, x, nil
 }
 func BuildResultMap(models interface{}, count int64, pageIndex int64, pageSize int64, firstPageSize int64, config SearchResultConfig) (map[string]interface{}, bool) {
