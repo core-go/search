@@ -21,7 +21,7 @@ func NewSearchServiceWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType
 	return &SqlSearchService{searchBuilder}
 }
 func NewDefaultSearchServiceWithMapper(db *sql.DB, tableName string, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error), mapper Mapper) *SqlSearchService {
-	driverName := GetDriverName(db)
+	driverName := GetDriver(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
 	searchBuilder := NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, extractSearch, mapper)
 	return &SqlSearchService{searchBuilder}

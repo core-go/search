@@ -31,7 +31,7 @@ type DefaultSearchResultBuilder struct {
 }
 
 func NewSearchResultBuilderWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error), mapper Mapper) *DefaultSearchResultBuilder {
-	driverName := GetDriverName(db)
+	driverName := GetDriver(db)
 	builder := &DefaultSearchResultBuilder{Database: db, QueryBuilder: queryBuilder, ModelType: modelType, extractSearch: extractSearch, Mapper: mapper, DriverName: driverName}
 	return builder
 }
@@ -39,12 +39,12 @@ func NewSearchResultBuilder(db *sql.DB, queryBuilder QueryBuilder, modelType ref
 	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, ExtractSearch, nil)
 }
 func NewDefaultSearchResultBuilderWithMapper(db *sql.DB, tableName string, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error), mapper Mapper) *DefaultSearchResultBuilder {
-	driverName := GetDriverName(db)
+	driverName := GetDriver(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
 	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, extractSearch, mapper)
 }
 func NewDefaultSearchResultBuilder(db *sql.DB, tableName string, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error)) *DefaultSearchResultBuilder {
-	driverName := GetDriverName(db)
+	driverName := GetDriver(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
 	return NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, extractSearch, nil)
 }
@@ -164,7 +164,7 @@ func BuildSearchResult(ctx context.Context, models interface{}, count int64, map
 	return r2, count, er3
 }
 
-func GetDriverName(db *sql.DB) string {
+func GetDriver(db *sql.DB) string {
 	if db == nil {
 		return DriverNotSupport
 	}

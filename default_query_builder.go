@@ -16,7 +16,7 @@ type DefaultQueryBuilder struct {
 }
 
 func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultQueryBuilder {
-	driverName := GetDriverName(db)
+	driverName := GetDriver(db)
 	return NewDefaultQueryBuilder(tableName, modelType, driverName)
 }
 func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName string) *DefaultQueryBuilder {
