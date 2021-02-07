@@ -10,21 +10,21 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	models, count, err := c.searchService.Search(r.Context(), searchModel)
 	if err != nil {
-		respondError(w, r, http.StatusInternalServerError, InternalServerError, c.LogError, c.Resource, "search", err, c.LogWriter)
+		respondError(w, r, http.StatusInternalServerError, InternalServerError, c.LogError, c.Resource, "search", err, c.WriteLog)
 		return
 	}
 	pageIndex, pageSize, firstPageSize, fs, err := ExtractFullSearch(searchModel)
 	result, isLastPage := BuildResultMap(models, count, pageIndex, pageSize, firstPageSize, c.Config)
 	if x == -1 {
-		succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, c.Action)
+		succeed(w, r, http.StatusOK, result, c.WriteLog, c.Resource, c.Action)
 	} else if c.quickSearch && x == 1 {
 		result1, ok := ResultToCsv(fs, models, count, isLastPage, c.embedField)
 		if ok {
-			succeed(w, r, http.StatusOK, result1, c.LogWriter, c.Resource, c.Action)
+			succeed(w, r, http.StatusOK, result1, c.WriteLog, c.Resource, c.Action)
 		} else {
-			succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, c.Action)
+			succeed(w, r, http.StatusOK, result, c.WriteLog, c.Resource, c.Action)
 		}
 	} else {
-		succeed(w, r, http.StatusOK, result, c.LogWriter, c.Resource, c.Action)
+		succeed(w, r, http.StatusOK, result, c.WriteLog, c.Resource, c.Action)
 	}
 }
