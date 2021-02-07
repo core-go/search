@@ -27,7 +27,7 @@ func write(w http.ResponseWriter, code int, result interface{}) {
 	response, err := marshal(result)
 	if err != nil {
 		log.Println("cannot marshal of result: " + err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, internalServerError, http.StatusInternalServerError)
 	} else {
 		w.Write(response)
 	}
