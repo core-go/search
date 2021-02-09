@@ -70,29 +70,46 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	var total int64
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	if driverName == DriverOracle {
-		queryPaging := BuildPagingQueryByDriver(query, pageIndex, pageSize, initPageSize, driverName)
-		er1 := QueryAndCount(db, models, &total, driverName, queryPaging, params...)
-		if er1 != nil {
-			return nil, -1, er1
-		}
-		return BuildSearchResult(ctx, models, total, mp)
-	} else {
-		queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driverName)
-		queryCount, paramsCount := BuildCountQuery(query, params)
+	if pageSize <= 0 {
 		fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
 		if er12 != nil {
 			return nil, -1, er12
 		}
-		er1 := Query(db, models, fieldsIndex, queryPaging, params...)
+		er1 := Query(db, models, fieldsIndex, query, params...)
 		if er1 != nil {
 			return nil, -1, er1
 		}
-		total, er2 := Count(db, queryCount, paramsCount...)
-		if er2 != nil {
-			total = 0
+		objectValues := reflect.Indirect(reflect.ValueOf(models))
+		if objectValues.Kind() == reflect.Slice {
+			i := objectValues.Len()
+			total = int64(i)
 		}
 		return BuildSearchResult(ctx, models, total, mp)
+	} else {
+		if driverName == DriverOracle {
+			queryPaging := BuildPagingQueryByDriver(query, pageIndex, pageSize, initPageSize, driverName)
+			er1 := QueryAndCount(db, models, &total, driverName, queryPaging, params...)
+			if er1 != nil {
+				return nil, -1, er1
+			}
+			return BuildSearchResult(ctx, models, total, mp)
+		} else {
+			queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driverName)
+			queryCount, paramsCount := BuildCountQuery(query, params)
+			fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
+			if er12 != nil {
+				return nil, -1, er12
+			}
+			er1 := Query(db, models, fieldsIndex, queryPaging, params...)
+			if er1 != nil {
+				return nil, -1, er1
+			}
+			total, er2 := Count(db, queryCount, paramsCount...)
+			if er2 != nil {
+				total = 0
+			}
+			return BuildSearchResult(ctx, models, total, mp)
+		}
 	}
 }
 func BuildPagingQueryByDriver(sql string, pageIndex int64, pageSize int64, initPageSize int64, driver string) string {

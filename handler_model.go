@@ -52,7 +52,7 @@ func RepairSearchModel(searchModel *SearchModel, currentUserId string) {
 	searchModel.CurrentUserId = currentUserId
 
 	pageSize := searchModel.PageSize
-	if pageSize > MaxPageSizeDefault || pageSize < 1 {
+	if pageSize > MaxPageSizeDefault {
 		pageSize = PageSizeDefault
 	}
 	pageIndex := searchModel.PageIndex
