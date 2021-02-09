@@ -10,27 +10,37 @@ type SqlSearchService struct {
 	SearchBuilder SearchResultBuilder
 }
 
-func NewSearchService(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type) *SqlSearchService {
-	return NewSearchServiceWithMapper(db, queryBuilder, modelType, ExtractSearch, nil)
-}
-func NewSearchServiceWithExtractor(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error)) *SqlSearchService {
-	return NewSearchServiceWithMapper(db, queryBuilder, modelType, extractSearch, nil)
-}
-func NewSearchServiceWithMapper(db *sql.DB, queryBuilder QueryBuilder, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error), mapper Mapper) *SqlSearchService {
-	searchBuilder := NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, extractSearch, mapper)
+func NewSearchServiceWithMap(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SqlSearchService {
+	var extractSearch func(m interface{}) (int64, int64, int64, error)
+	if len(options) >= 1 {
+		extractSearch = options[0]
+	}
+	searchBuilder := NewSearchResultBuilderWithMap(db, modelType, buildQuery, mp, extractSearch)
 	return &SqlSearchService{searchBuilder}
 }
-func NewDefaultSearchServiceWithMapper(db *sql.DB, tableName string, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error), mapper Mapper) *SqlSearchService {
+func NewSearchService(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) *SqlSearchService {
+	var mp func(context.Context, interface{}) (interface{}, error)
+	if len(options) >= 1 {
+		mp = options[0]
+	}
+	return NewSearchServiceWithMap(db, modelType, buildQuery, mp)
+}
+func NewDefaultSearchServiceWithMap(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SqlSearchService {
+	var extractSearch func(m interface{}) (int64, int64, int64, error)
+	if len(options) >= 1 {
+		extractSearch = options[0]
+	}
 	driverName := GetDriver(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
-	searchBuilder := NewSearchResultBuilderWithMapper(db, queryBuilder, modelType, extractSearch, mapper)
+	searchBuilder := NewSearchResultBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, extractSearch)
 	return &SqlSearchService{searchBuilder}
 }
-func NewDefaultSearchService(db *sql.DB, tableName string, modelType reflect.Type) *SqlSearchService {
-	return NewDefaultSearchServiceWithMapper(db, tableName, modelType, ExtractSearch, nil)
-}
-func NewDefaultSearchServiceWithExtractor(db *sql.DB, tableName string, modelType reflect.Type, extractSearch func(m interface{}) (int64, int64, int64, error)) *SqlSearchService {
-	return NewDefaultSearchServiceWithMapper(db, tableName, modelType, extractSearch, nil)
+func NewDefaultSearchService(db *sql.DB, tableName string, modelType reflect.Type, options ...func(context.Context, interface{}) (interface{}, error)) *SqlSearchService {
+	var mp func(context.Context, interface{}) (interface{}, error)
+	if len(options) >= 1 {
+		mp = options[0]
+	}
+	return NewDefaultSearchServiceWithMap(db, tableName, modelType, mp, nil)
 }
 func (s *SqlSearchService) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	return s.SearchBuilder.BuildSearchResult(ctx, m)

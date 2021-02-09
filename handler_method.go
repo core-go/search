@@ -8,7 +8,7 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot decode search model: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	models, count, err := c.searchService.Search(r.Context(), searchModel)
+	models, count, err := c.search(r.Context(), searchModel)
 	if err != nil {
 		respondError(w, r, http.StatusInternalServerError, InternalServerError, c.LogError, c.Resource, "search", err, c.WriteLog)
 		return
