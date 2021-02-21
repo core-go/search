@@ -85,28 +85,31 @@ func Query(db *sql.DB, results interface{}, fieldsIndex map[string]int, sql stri
 			reflect.ValueOf(results).Elem().Set(reflect.ValueOf(tb).Elem())
 		}
 	} else {
-		columns, _ := rows.Columns()
+		columns, er3 := rows.Columns()
+		if er3 != nil {
+			return er3
+		}
 		fieldsIndexSelected := make([]int, 0)
 		for _, columnsName := range columns {
 			if index, ok := fieldsIndex[columnsName]; ok {
 				fieldsIndexSelected = append(fieldsIndexSelected, index)
 			}
 		}
-		tb, er3 := ScanType(rows, modelType, fieldsIndexSelected)
-		if er3 != nil {
-			return er3
+		tb, er4 := ScanType(rows, modelType, fieldsIndexSelected)
+		if er4 != nil {
+			return er4
 		}
 		for _, element := range tb {
 			appendToArray(results, element)
 		}
 	}
-	er4 := rows.Close()
-	if er4 != nil {
-		return er4
+	er5 := rows.Close()
+	if er5 != nil {
+		return er5
 	}
 	// Rows.Err will report the last error encountered by Rows.Scan.
-	if er5 := rows.Err(); er5 != nil {
-		return er5
+	if er6 := rows.Err(); er6 != nil {
+		return er6
 	}
 	return nil
 }
