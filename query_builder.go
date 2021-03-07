@@ -9,18 +9,18 @@ import (
 	"time"
 )
 
-type DefaultQueryBuilder struct {
+type QueryBuilder struct {
 	TableName  string
 	ModelType  reflect.Type
 	DriverName string
 }
 
-func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *DefaultQueryBuilder {
+func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *QueryBuilder {
 	driverName := GetDriver(db)
 	return NewDefaultQueryBuilder(tableName, modelType, driverName)
 }
-func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName string) *DefaultQueryBuilder {
-	return &DefaultQueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName}
+func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName string) *QueryBuilder {
+	return &QueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName}
 }
 
 const (
@@ -44,7 +44,7 @@ func GetColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	}
 	return nil
 }
-func (b *DefaultQueryBuilder) BuildQuery(sm interface{}) (string, []interface{}) {
+func (b *QueryBuilder) BuildQuery(sm interface{}) (string, []interface{}) {
 	return BuildQuery(sm, b.TableName, b.ModelType, b.DriverName)
 }
 func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driverName string) (string, []interface{}) {

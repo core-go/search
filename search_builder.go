@@ -21,7 +21,7 @@ const (
 	asc                 = "asc"
 )
 
-type DefaultSearchBuilder struct {
+type SearchBuilder struct {
 	Database      *sql.DB
 	BuildQuery    func(sm interface{}) (string, []interface{})
 	ModelType     reflect.Type
@@ -29,23 +29,23 @@ type DefaultSearchBuilder struct {
 	Map           func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
-func NewSearchBuilder(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) *DefaultSearchBuilder {
+func NewSearchBuilder(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
 	var mp func(context.Context, interface{}) (interface{}, error)
 	if len(options) >= 1 {
 		mp = options[0]
 	}
-	builder := &DefaultSearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, Map: mp, extractSearch: ExtractSearch}
+	builder := &SearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, Map: mp, extractSearch: ExtractSearch}
 	return builder
 }
-func NewSearchBuilderWithMap(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *DefaultSearchBuilder {
+func NewSearchBuilderWithMap(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SearchBuilder {
 	var extractSearch func(m interface{}) (int64, int64, int64, error)
 	if len(options) >= 1 {
 		extractSearch = options[0]
 	}
-	builder := &DefaultSearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, extractSearch: extractSearch, Map: mp}
+	builder := &SearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, extractSearch: extractSearch, Map: mp}
 	return builder
 }
-func NewDefaultSearchBuilder(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *DefaultSearchBuilder {
+func NewDefaultSearchBuilder(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SearchBuilder {
 	var extractSearch func(m interface{}) (int64, int64, int64, error)
 	if len(options) >= 1 {
 		extractSearch = options[0]
@@ -54,7 +54,7 @@ func NewDefaultSearchBuilder(db *sql.DB, tableName string, modelType reflect.Typ
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
 	return NewSearchBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, extractSearch)
 }
-func (b *DefaultSearchBuilder) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
+func (b *SearchBuilder) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	sql, params := b.BuildQuery(m)
 	pageIndex, pageSize, firstPageSize, err := b.extractSearch(m)
 	if err != nil {
