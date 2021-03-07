@@ -64,13 +64,13 @@ func NewSearchHandlerWithQuickSearch(search func(ctx context.Context, searchMode
 	}
 	return NewSearchHandlerWithConfig(search, searchModelType, logError, nil, writeLog, quickSearch, resource, action, user, "")
 }
-func NewSearchHandlerWithUserId(search func(ctx context.Context, searchModel interface{}) (interface{}, int64, error), searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
+func NewSearchHandlerWithUserId(search func(context.Context, interface{}) (interface{}, int64, error), searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
 	return NewSearchHandlerWithUserIdAndQuickSearch(search, searchModelType, userId, logError, writeLog, true, options...)
 }
-func NewJSONSearchHandlerWithUserId(search func(ctx context.Context, searchModel interface{}) (interface{}, int64, error), searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
+func NewJSONSearchHandlerWithUserId(search func(context.Context, interface{}) (interface{}, int64, error), searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
 	return NewSearchHandlerWithUserIdAndQuickSearch(search, searchModelType, userId, logError, writeLog, false, options...)
 }
-func NewSearchHandlerWithUserIdAndQuickSearch(search func(ctx context.Context, searchModel interface{}) (interface{}, int64, error), searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
+func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, interface{}) (interface{}, int64, error), searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action string
 	if len(options) >= 1 {
 		resource = options[0]

@@ -51,33 +51,33 @@ func FindSearchModelIndex(searchModelType reflect.Type) int {
 func RepairSearchModel(searchModel *SearchModel, currentUserId string) {
 	searchModel.CurrentUserId = currentUserId
 
-	pageSize := searchModel.PageSize
+	pageSize := searchModel.Limit
 	if pageSize > MaxPageSizeDefault {
 		pageSize = PageSizeDefault
 	}
-	pageIndex := searchModel.PageIndex
-	if searchModel.PageIndex < 1 {
+	pageIndex := searchModel.Page
+	if searchModel.Page < 1 {
 		pageIndex = 1
 	}
 
-	if searchModel.PageSize != pageSize {
-		searchModel.PageSize = pageSize
+	if searchModel.Limit != pageSize {
+		searchModel.Limit = pageSize
 	}
 
-	if searchModel.PageIndex != pageIndex {
-		searchModel.PageIndex = pageIndex
+	if searchModel.Page != pageIndex {
+		searchModel.Page = pageIndex
 	}
 }
 
 func ExtractFullSearch(m interface{}) (int64, int64, int64, []string, error) {
 	if sModel, ok := m.(*SearchModel); ok {
-		return sModel.PageIndex, sModel.PageSize, sModel.FirstPageSize, sModel.Fields, nil
+		return sModel.Page, sModel.Limit, sModel.FirstLimit, sModel.Fields, nil
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.PageIndex, sModel1.PageSize, sModel1.FirstPageSize, sModel1.Fields, nil
+				return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, sModel1.Fields, nil
 			}
 		}
 		return 0, 0, 0, nil, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
