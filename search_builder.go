@@ -22,11 +22,11 @@ const (
 )
 
 type SearchBuilder struct {
-	Database      *sql.DB
-	BuildQuery    func(sm interface{}) (string, []interface{})
-	ModelType     reflect.Type
-	extractSearch func(m interface{}) (int64, int64, int64, error)
-	Map           func(ctx context.Context, model interface{}) (interface{}, error)
+	Database   *sql.DB
+	BuildQuery func(sm interface{}) (string, []interface{})
+	ModelType  reflect.Type
+	Extract    func(m interface{}) (int64, int64, int64, error)
+	Map        func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
 func NewSearchBuilder(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
@@ -34,29 +34,27 @@ func NewSearchBuilder(db *sql.DB, modelType reflect.Type, buildQuery func(sm int
 	if len(options) >= 1 {
 		mp = options[0]
 	}
-	builder := &SearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, Map: mp, extractSearch: ExtractSearch}
+	builder := &SearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, Map: mp, Extract: ExtractSearch}
 	return builder
 }
 func NewSearchBuilderWithMap(db *sql.DB, modelType reflect.Type, buildQuery func(sm interface{}) (string, []interface{}), mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SearchBuilder {
 	var extractSearch func(m interface{}) (int64, int64, int64, error)
 	if len(options) >= 1 {
 		extractSearch = options[0]
+	} else {
+		extractSearch = ExtractSearch
 	}
-	builder := &SearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, extractSearch: extractSearch, Map: mp}
+	builder := &SearchBuilder{Database: db, BuildQuery: buildQuery, ModelType: modelType, Extract: extractSearch, Map: mp}
 	return builder
 }
 func NewDefaultSearchBuilder(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SearchBuilder {
-	var extractSearch func(m interface{}) (int64, int64, int64, error)
-	if len(options) >= 1 {
-		extractSearch = options[0]
-	}
 	driverName := GetDriver(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
-	return NewSearchBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, extractSearch)
+	return NewSearchBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, options...)
 }
 func (b *SearchBuilder) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	sql, params := b.BuildQuery(m)
-	pageIndex, pageSize, firstPageSize, err := b.extractSearch(m)
+	pageIndex, pageSize, firstPageSize, err := b.Extract(m)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -236,7 +234,7 @@ func dbToModels(ctx context.Context, models interface{}, mp func(context.Context
 			if k == reflect.Struct {
 				y := x.Addr().Interface()
 				mp(ctx, y)
-			} else  {
+			} else {
 				y := x.Interface()
 				mp(ctx, y)
 			}

@@ -51,10 +51,21 @@ func FindSearchModelIndex(searchModelType reflect.Type) int {
 func RepairSearchModel(searchModel *SearchModel, currentUserId string) {
 	searchModel.CurrentUserId = currentUserId
 
+	if searchModel.PageIndex != 0 && searchModel.Page == 0 {
+		searchModel.Page = searchModel.PageIndex
+	}
+	if searchModel.PageSize != 0 && searchModel.Limit == 0 {
+		searchModel.Limit = searchModel.PageSize
+	}
+	if searchModel.FirstPageSize !=0 && searchModel.FirstLimit == 0 {
+		searchModel.FirstLimit = searchModel.FirstPageSize
+	}
+
 	pageSize := searchModel.Limit
 	if pageSize > MaxPageSizeDefault {
 		pageSize = PageSizeDefault
 	}
+
 	pageIndex := searchModel.Page
 	if searchModel.Page < 1 {
 		pageIndex = 1
