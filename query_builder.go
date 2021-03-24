@@ -13,14 +13,21 @@ type QueryBuilder struct {
 	TableName  string
 	ModelType  reflect.Type
 	DriverName string
+	BuildParam func(int) string
 }
 
-func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type) *QueryBuilder {
+func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *QueryBuilder {
 	driverName := GetDriver(db)
-	return NewDefaultQueryBuilder(tableName, modelType, driverName)
+	var build func(int) string
+	if len(options) > 0 {
+		build = options[0]
+	} else {
+		build = GetBuild(db)
+	}
+	return NewDefaultQueryBuilder(tableName, modelType, driverName, build)
 }
-func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName string) *QueryBuilder {
-	return &QueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName}
+func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName string, buildParam func(int) string) *QueryBuilder {
+	return &QueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName, BuildParam: buildParam}
 }
 
 const (
@@ -45,9 +52,9 @@ func GetColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	return nil
 }
 func (b *QueryBuilder) BuildQuery(sm interface{}) (string, []interface{}) {
-	return BuildQuery(sm, b.TableName, b.ModelType, b.DriverName)
+	return BuildQuery(sm, b.TableName, b.ModelType, b.DriverName, b.BuildParam)
 }
-func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driverName string) (string, []interface{}) {
+func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driverName string, buildParam func(int) string) (string, []interface{}) {
 	s1 := ""
 	rawConditions := make([]string, 0)
 	queryValues := make([]interface{}, 0)
@@ -71,7 +78,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 		kind := field.Kind()
 		x := field.Interface()
 		typeOfField := value.Type().Field(i)
-		param := BuildParam(marker+1, driverName)
+		param := buildParam(marker + 1)
 
 		if v, ok := x.(*SearchModel); ok {
 			if len(v.Fields) > 0 {
@@ -124,7 +131,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 						log.Panic("column name not found")
 					}
 					if len(val) > 0 {
-						format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, len(val), driverName))
+						format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, len(val), buildParam))
 						marker += len(val) - 1
 						rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", columnName, format))
 						queryValues = ExtractArray(queryValues, val)
@@ -288,7 +295,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			}
 		} else if kind == reflect.Slice {
 			if field.Len() > 0 {
-				format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, field.Len(), driverName))
+				format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, field.Len(), buildParam))
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, In, format))
 				queryValues = ExtractArray(queryValues, x)
 				marker += field.Len()
@@ -328,21 +335,4 @@ func BuildSort(sortString string, modelType reflect.Type) string {
 		sort = append(sort, columnName+" "+sortType)
 	}
 	return ` order by ` + strings.Join(sort, ",")
-}
-func ReplaceParameters(sql string, number int, prefix string) string {
-	for i := 0; i < number; i++ {
-		count := i + 1
-		sql = strings.Replace(sql, "?", prefix+fmt.Sprintf("%v", count), 1)
-	}
-	return sql
-}
-func BuildQueryByDriver(sql string, number int, driverName string) string {
-	switch driverName {
-	case DriverPostgres:
-		return ReplaceParameters(sql, number, "$")
-	case DriverOracle:
-		return ReplaceParameters(sql, number, ":val")
-	default:
-		return sql
-	}
 }

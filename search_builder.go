@@ -14,6 +14,7 @@ const (
 	DriverMysql         = "mysql"
 	DriverMssql         = "mssql"
 	DriverOracle        = "oracle"
+	DriverSqlite3       = "sqlite3"
 	DriverNotSupport    = "no support"
 	DefaultPagingFormat = " limit %s offset %s "
 	OraclePagingFormat  = " offset %s rows fetch next %s rows only "
@@ -49,7 +50,8 @@ func NewSearchBuilderWithMap(db *sql.DB, modelType reflect.Type, buildQuery func
 }
 func NewDefaultSearchBuilder(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SearchBuilder {
 	driverName := GetDriver(db)
-	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName)
+	buildParam := GetBuild(db)
+	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName, buildParam)
 	return NewSearchBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, options...)
 }
 func (b *SearchBuilder) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
@@ -191,6 +193,8 @@ func GetDriver(db *sql.DB) string {
 	switch driver {
 	case "*pq.Driver":
 		return DriverPostgres
+	case "*sqlite3.SQLiteDriver":
+		return DriverSqlite3
 	case "*mysql.MySQLDriver":
 		return DriverMysql
 	case "*mssql.Driver":
@@ -201,22 +205,32 @@ func GetDriver(db *sql.DB) string {
 		return DriverNotSupport
 	}
 }
-
-func BuildParam(index int, driver string) string {
+func BuildParam(i int) string {
+	return "?"
+}
+func BuildOracleParam(i int) string {
+	return ":val" + strconv.Itoa(i)
+}
+func BuildDollarParam(i int) string {
+	return "$" + strconv.Itoa(i)
+}
+func GetBuild(db *sql.DB) func(i int) string {
+	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
-	case DriverPostgres:
-		return "$" + strconv.Itoa(index)
-	case DriverOracle:
-		return ":val" + strconv.Itoa(index)
+	case "*pq.Driver":
+		return BuildDollarParam
+	case "*sqlite3.SQLiteDriver":
+		return BuildDollarParam
+	case "*godror.drv":
+		return BuildOracleParam
 	default:
-		return "?"
+		return BuildParam
 	}
 }
-
-func BuildParametersFrom(i int, numCol int, driver string) string {
+func BuildParametersFrom(i int, numCol int, buildParam func(i int) string) string {
 	var arrValue []string
 	for j := 0; j < numCol; j++ {
-		arrValue = append(arrValue, BuildParam(i+j+1, driver))
+		arrValue = append(arrValue, buildParam(i+j+1))
 	}
 	return strings.Join(arrValue, ",")
 }
