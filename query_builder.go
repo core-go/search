@@ -17,12 +17,12 @@ type QueryBuilder struct {
 }
 
 func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *QueryBuilder {
-	driverName := GetDriver(db)
+	driverName := getDriver(db)
 	var build func(int) string
 	if len(options) > 0 {
 		build = options[0]
 	} else {
-		build = GetBuild(db)
+		build = getBuild(db)
 	}
 	return NewDefaultQueryBuilder(tableName, modelType, driverName, build)
 }
@@ -40,7 +40,7 @@ const (
 	In               = "in"
 )
 
-func GetColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
+func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	tag := typeOfField.Tag
 	properties := strings.Split(tag.Get("sql_builder"), ";")
 	for _, property := range properties {
@@ -83,7 +83,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 		if v, ok := x.(*SearchModel); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
-					i, _, columnName := GetFieldByJson(modelType, key)
+					i, _, columnName := getFieldByJson(modelType, key)
 					if len(columnName) < 0 {
 						fields = fields[len(fields):]
 						break
@@ -96,7 +96,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			if len(fields) > 0 {
 				s1 = `select ` + strings.Join(fields, ",") + ` from ` + tableName
 			} else {
-				columns := GetColumnsSelect(modelType)
+				columns := getColumnsSelect(modelType)
 				if len(columns) > 0 {
 					s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
 				} else {
@@ -108,11 +108,11 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			}
 		}
 
-		columnName, existCol := GetColumnName(value.Type(), typeOfField.Name)
+		columnName, existCol := getColumnName(value.Type(), typeOfField.Name)
 		if !existCol {
-			columnName, _ = GetColumnName(modelType, typeOfField.Name)
+			columnName, _ = getColumnName(modelType, typeOfField.Name)
 		}
-		columnNameFromSqlBuilderTag := GetColumnNameFromSqlBuilderTag(typeOfField)
+		columnNameFromSqlBuilderTag := getColumnNameFromSqlBuilderTag(typeOfField)
 		if columnNameFromSqlBuilderTag != nil {
 			columnName = *columnNameFromSqlBuilderTag
 		}
@@ -126,7 +126,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 		if v, ok := x.(*SearchModel); ok {
 			if len(v.Excluding) > 0 {
 				for key, val := range v.Excluding {
-					index, _, columnName := GetFieldByJson(value.Type(), key)
+					index, _, columnName := getFieldByJson(value.Type(), key)
 					if index == -1 || columnName == "" {
 						log.Panic("column name not found")
 					}
@@ -330,8 +330,8 @@ func BuildSort(sortString string, modelType reflect.Type) string {
 		if c == "-" || c == "+" {
 			fieldName = sortField[1:]
 		}
-		columnName := GetColumnNameForSearch(modelType, fieldName)
-		sortType := GetSortType(c)
+		columnName := getColumnNameForSearch(modelType, fieldName)
+		sortType := getSortType(c)
 		sort = append(sort, columnName+" "+sortType)
 	}
 	return ` order by ` + strings.Join(sort, ",")

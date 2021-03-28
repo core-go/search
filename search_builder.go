@@ -49,8 +49,8 @@ func NewSearchBuilderWithMap(db *sql.DB, modelType reflect.Type, buildQuery func
 	return builder
 }
 func NewDefaultSearchBuilder(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SearchBuilder {
-	driverName := GetDriver(db)
-	buildParam := GetBuild(db)
+	driverName := getDriver(db)
+	buildParam := getBuild(db)
 	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName, buildParam)
 	return NewSearchBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, options...)
 }
@@ -67,13 +67,13 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	var total int64
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	driverName := GetDriver(db)
+	driverName := getDriver(db)
 	if pageSize <= 0 {
-		fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
+		fieldsIndex, er12 := getColumnIndexes(modelType, driverName)
 		if er12 != nil {
 			return nil, -1, er12
 		}
-		er1 := Query(db, models, fieldsIndex, query, params...)
+		er1 := Query(ctx, db, models, fieldsIndex, query, params...)
 		if er1 != nil {
 			return nil, -1, er1
 		}
@@ -86,7 +86,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	} else {
 		if driverName == DriverOracle {
 			queryPaging := BuildPagingQueryByDriver(query, pageIndex, pageSize, initPageSize, driverName)
-			er1 := QueryAndCount(db, models, &total, driverName, queryPaging, params...)
+			er1 := QueryAndCount(ctx, db, models, &total, driverName, queryPaging, params...)
 			if er1 != nil {
 				return nil, -1, er1
 			}
@@ -94,15 +94,15 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 		} else {
 			queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driverName)
 			queryCount, paramsCount := BuildCountQuery(query, params)
-			fieldsIndex, er12 := GetColumnIndexes(modelType, driverName)
+			fieldsIndex, er12 := getColumnIndexes(modelType, driverName)
 			if er12 != nil {
 				return nil, -1, er12
 			}
-			er1 := Query(db, models, fieldsIndex, queryPaging, params...)
+			er1 := Query(ctx, db, models, fieldsIndex, queryPaging, params...)
 			if er1 != nil {
 				return nil, -1, er1
 			}
-			total, er2 := Count(db, queryCount, paramsCount...)
+			total, er2 := Count(ctx, db, queryCount, paramsCount...)
 			if er2 != nil {
 				total = 0
 			}
@@ -115,12 +115,20 @@ func BuildPagingQueryByDriver(sql string, pageIndex int64, pageSize int64, initP
 	if driver != DriverOracle {
 		return s2
 	} else {
-		i := strings.Index(s2, "select")
+		l := len(" distinct ")
+		i := strings.Index(sql, " distinct ")
+		if i < 0 {
+			i = strings.Index(sql, " DISTINCT ")
+		}
+		if i < 0 {
+			l = len("select") + 1
+			i = strings.Index(s2, "select")
+		}
 		if i < 0 {
 			i = strings.Index(s2, "SELECT")
 		}
 		if i >= 0 {
-			return s2[0:i+7] + " count(*) over() as total, " + s2[i+7:]
+			return s2[0:l] + " count(*) over() as total, " + s2[l:]
 		}
 		return s2
 	}
@@ -185,7 +193,7 @@ func BuildSearchResult(ctx context.Context, models interface{}, count int64, mp 
 	return r2, count, er3
 }
 
-func GetDriver(db *sql.DB) string {
+func getDriver(db *sql.DB) string {
 	if db == nil {
 		return DriverNotSupport
 	}
@@ -193,38 +201,41 @@ func GetDriver(db *sql.DB) string {
 	switch driver {
 	case "*pq.Driver":
 		return DriverPostgres
-	case "*sqlite3.SQLiteDriver":
-		return DriverSqlite3
+	case "*godror.drv":
+		return DriverOracle
 	case "*mysql.MySQLDriver":
 		return DriverMysql
 	case "*mssql.Driver":
 		return DriverMssql
-	case "*godror.drv":
-		return DriverOracle
+	case "*sqlite3.SQLiteDriver":
+		return DriverSqlite3
 	default:
 		return DriverNotSupport
 	}
 }
-func BuildParam(i int) string {
+func buildParam(i int) string {
 	return "?"
 }
-func BuildOracleParam(i int) string {
+func buildOracleParam(i int) string {
 	return ":val" + strconv.Itoa(i)
 }
-func BuildDollarParam(i int) string {
+func buildMsSqlParam(i int) string {
+	return "@p" + strconv.Itoa(i)
+}
+func buildDollarParam(i int) string {
 	return "$" + strconv.Itoa(i)
 }
-func GetBuild(db *sql.DB) func(i int) string {
+func getBuild(db *sql.DB) func(i int) string {
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*pq.Driver":
-		return BuildDollarParam
-	case "*sqlite3.SQLiteDriver":
-		return BuildDollarParam
+		return buildDollarParam
 	case "*godror.drv":
-		return BuildOracleParam
+		return buildOracleParam
+	case "*mysql.MySQLDriver":
+		return buildMsSqlParam
 	default:
-		return BuildParam
+		return buildParam
 	}
 }
 func BuildParametersFrom(i int, numCol int, buildParam func(i int) string) string {
