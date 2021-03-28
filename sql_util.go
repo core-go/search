@@ -115,7 +115,7 @@ func Query(ctx context.Context, db *sql.DB, results interface{}, fieldsIndex map
 	return nil
 }
 
-func QueryAndCount(ctx context.Context, db *sql.DB, results interface{}, count *int64, driverName string, sql string, values ...interface{}) error {
+func QueryAndCount(ctx context.Context, db *sql.DB, results interface{}, count *int64, driver string, sql string, values ...interface{}) error {
 	rows, er1 := db.QueryContext(ctx, sql, values...)
 	if er1 != nil {
 		return er1
@@ -123,7 +123,7 @@ func QueryAndCount(ctx context.Context, db *sql.DB, results interface{}, count *
 	defer rows.Close()
 	modelType := reflect.TypeOf(results).Elem().Elem()
 
-	fieldsIndex, er0 := getColumnIndexes(modelType, driverName)
+	fieldsIndex, er0 := getColumnIndexes(modelType, driver)
 	if er0 != nil {
 		return er0
 	}

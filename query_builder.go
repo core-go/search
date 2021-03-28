@@ -12,22 +12,22 @@ import (
 type QueryBuilder struct {
 	TableName  string
 	ModelType  reflect.Type
-	DriverName string
+	Driver     string
 	BuildParam func(int) string
 }
 
 func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *QueryBuilder {
-	driverName := getDriver(db)
+	driver := getDriver(db)
 	var build func(int) string
 	if len(options) > 0 {
 		build = options[0]
 	} else {
 		build = getBuild(db)
 	}
-	return NewDefaultQueryBuilder(tableName, modelType, driverName, build)
+	return NewDefaultQueryBuilder(tableName, modelType, driver, build)
 }
-func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driverName string, buildParam func(int) string) *QueryBuilder {
-	return &QueryBuilder{TableName: tableName, ModelType: modelType, DriverName: driverName, BuildParam: buildParam}
+func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driver string, buildParam func(int) string) *QueryBuilder {
+	return &QueryBuilder{TableName: tableName, ModelType: modelType, Driver: driver, BuildParam: buildParam}
 }
 
 const (
@@ -52,9 +52,9 @@ func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	return nil
 }
 func (b *QueryBuilder) BuildQuery(sm interface{}) (string, []interface{}) {
-	return BuildQuery(sm, b.TableName, b.ModelType, b.DriverName, b.BuildParam)
+	return BuildQuery(sm, b.TableName, b.ModelType, b.Driver, b.BuildParam)
 }
-func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driverName string, buildParam func(int) string) (string, []interface{}) {
+func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver string, buildParam func(int) string) (string, []interface{}) {
 	s1 := ""
 	rawConditions := make([]string, 0)
 	queryValues := make([]interface{}, 0)
@@ -286,7 +286,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 				}
 			}
 			if searchValue {
-				if driverName == DriverPostgres { // "postgres"
+				if driver == DriverPostgres { // "postgres"
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ilike`, param))
 				} else {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, param))

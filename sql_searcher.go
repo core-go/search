@@ -19,9 +19,9 @@ func NewSearcherWithQuery(db *sql.DB, modelType reflect.Type, buildQuery func(sm
 	return NewSearcherWithMap(db, modelType, buildQuery, mp)
 }
 func NewDefaultSearcherWithMap(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *Searcher {
-	driverName := getDriver(db)
+	driver := getDriver(db)
 	buildParam := getBuild(db)
-	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName, buildParam)
+	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driver, buildParam)
 	builder := NewSearchBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, options...)
 	return NewSearcher(builder.Search)
 }

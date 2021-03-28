@@ -49,9 +49,9 @@ func NewSearchBuilderWithMap(db *sql.DB, modelType reflect.Type, buildQuery func
 	return builder
 }
 func NewDefaultSearchBuilder(db *sql.DB, tableName string, modelType reflect.Type, mp func(context.Context, interface{}) (interface{}, error), options ...func(m interface{}) (int64, int64, int64, error)) *SearchBuilder {
-	driverName := getDriver(db)
+	driver := getDriver(db)
 	buildParam := getBuild(db)
-	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driverName, buildParam)
+	queryBuilder := NewDefaultQueryBuilder(tableName, modelType, driver, buildParam)
 	return NewSearchBuilderWithMap(db, modelType, queryBuilder.BuildQuery, mp, options...)
 }
 func (b *SearchBuilder) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
@@ -67,9 +67,9 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 	var total int64
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	driverName := getDriver(db)
+	driver := getDriver(db)
 	if pageSize <= 0 {
-		fieldsIndex, er12 := getColumnIndexes(modelType, driverName)
+		fieldsIndex, er12 := getColumnIndexes(modelType, driver)
 		if er12 != nil {
 			return nil, -1, er12
 		}
@@ -84,17 +84,17 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, modelType reflect.Type, que
 		}
 		return BuildSearchResult(ctx, models, total, mp)
 	} else {
-		if driverName == DriverOracle {
-			queryPaging := BuildPagingQueryByDriver(query, pageIndex, pageSize, initPageSize, driverName)
-			er1 := QueryAndCount(ctx, db, models, &total, driverName, queryPaging, params...)
+		if driver == DriverOracle {
+			queryPaging := BuildPagingQueryByDriver(query, pageIndex, pageSize, initPageSize, driver)
+			er1 := QueryAndCount(ctx, db, models, &total, driver, queryPaging, params...)
 			if er1 != nil {
 				return nil, -1, er1
 			}
 			return BuildSearchResult(ctx, models, total, mp)
 		} else {
-			queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driverName)
+			queryPaging := BuildPagingQuery(query, pageIndex, pageSize, initPageSize, driver)
 			queryCount, paramsCount := BuildCountQuery(query, params)
-			fieldsIndex, er12 := getColumnIndexes(modelType, driverName)
+			fieldsIndex, er12 := getColumnIndexes(modelType, driver)
 			if er12 != nil {
 				return nil, -1, er12
 			}
