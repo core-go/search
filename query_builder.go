@@ -40,8 +40,25 @@ const (
 	In               = "in"
 )
 
-func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
+func getStringFromTag(typeOfField reflect.StructField, tagName string, key string) *string {
 	tag := typeOfField.Tag
+	properties := strings.Split(tag.Get(tagName), ";")
+	for _, property := range properties {
+		if strings.HasPrefix(property, key) {
+			column := property[len(key):]
+			return &column
+		}
+	}
+	return nil
+}
+
+func getJoinFromSqlBuilderTag(typeOfField reflect.StructField) *string {
+	return getStringFromTag(typeOfField, "sql_builder", "join:")
+}
+
+func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
+	return getStringFromTag(typeOfField, "sql_builder", "column:")
+	/*tag := typeOfField.Tag
 	properties := strings.Split(tag.Get("sql_builder"), ";")
 	for _, property := range properties {
 		if strings.HasPrefix(property, "column:") {
@@ -49,7 +66,7 @@ func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 			return &column
 		}
 	}
-	return nil
+	return nil*/
 }
 func (b *QueryBuilder) BuildQuery(sm interface{}) (string, []interface{}) {
 	return BuildQuery(sm, b.TableName, b.ModelType, b.Driver, b.BuildParam)
@@ -58,6 +75,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 	s1 := ""
 	rawConditions := make([]string, 0)
 	queryValues := make([]interface{}, 0)
+	rawJoin := make([]string, 0)
 	sortString := ""
 	fields := make([]string, 0)
 	var keyword string
@@ -112,10 +130,17 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 		if !existCol {
 			columnName, _ = getColumnName(modelType, typeOfField.Name)
 		}
+
 		columnNameFromSqlBuilderTag := getColumnNameFromSqlBuilderTag(typeOfField)
 		if columnNameFromSqlBuilderTag != nil {
 			columnName = *columnNameFromSqlBuilderTag
 		}
+
+		joinFromSqlBuilderTag := getJoinFromSqlBuilderTag(typeOfField)
+		if joinFromSqlBuilderTag != nil {
+			rawJoin = append(rawJoin, *joinFromSqlBuilderTag)
+		}
+
 		if kind == reflect.Ptr && field.IsNil() {
 			continue
 		}
@@ -304,6 +329,10 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Exact, param))
 			queryValues = append(queryValues, x)
 		}
+	}
+
+	if len(rawJoin) > 0 {
+		s1 = s1 + " " + strings.Join(rawJoin, " ")
 	}
 	if len(rawConditions) > 0 {
 		s2 := s1 + ` where ` + strings.Join(rawConditions, " AND ") + sortString

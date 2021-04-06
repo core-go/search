@@ -299,6 +299,10 @@ func getColumnsSelect(modelType reflect.Type) []string {
 				for j := 0; j < len(str2); j++ {
 					if str2[j] == "column" {
 						columnName := str2[j+1]
+						columnNameTag := getColumnNameFromSqlBuilderTag(field)
+						if columnNameTag != nil {
+							columnName = *columnNameTag
+						}
 						columnNameKeys = append(columnNameKeys, columnName)
 					}
 				}
