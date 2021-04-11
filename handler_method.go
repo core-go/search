@@ -10,7 +10,7 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	models, count, err := c.search(r.Context(), searchModel)
 	if err != nil {
-		respondError(w, r, http.StatusInternalServerError, InternalServerError, c.Error, c.Resource, "search", err, c.Log)
+		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", err, c.Log)
 		return
 	}
 	pageIndex, pageSize, firstPageSize, fs, err := ExtractFullSearch(searchModel)

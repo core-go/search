@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 )
-const InternalServerError = "Internal Server Error"
 
 func respondError(w http.ResponseWriter, r *http.Request, code int, result interface{}, logError func(context.Context, string), resource string, action string, err error, writeLog func(ctx context.Context, resource string, action string, success bool, desc string) error) {
 	if logError != nil {
