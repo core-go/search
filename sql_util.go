@@ -159,12 +159,36 @@ func appendToArray(arr interface{}, item interface{}) interface{} {
 	return arr
 }
 
+func swapValuesToBool(s interface{}, modelType reflect.Type, swap *map[int]interface{})  {
+	if s != nil {
+		maps := reflect.Indirect(reflect.ValueOf(s))
+		for index, element := range (*swap){
+			var isBool bool
+			boolStr := modelType.Field(index).Tag.Get("true")
+			var dbValue = element.(*string)
+			isBool = *dbValue == boolStr
+			if maps.Field(index).Kind() == reflect.Ptr {
+				maps.Field(index).Set(reflect.ValueOf(&isBool))
+			} else {
+				maps.Field(index).SetBool(isBool)
+			}
+		}
+	}
+}
+
 // StructScan : transfer struct to slice for scan
-func structScan(s interface{}, indexColumns []int) (r []interface{}) {
+func structScan(s interface{}, indexColumns []int, modelType reflect.Type, swap *map[int]interface{}) (r []interface{}) {
 	if s != nil {
 		maps := reflect.Indirect(reflect.ValueOf(s))
 		for _, index := range indexColumns {
-			r = append(r, maps.Field(index).Addr().Interface())
+			tagBool := modelType.Field(index).Tag.Get("true")
+			if tagBool == ""{
+				r = append(r, maps.Field(index).Addr().Interface())
+			} else {
+				var str string
+				(*swap)[index] = reflect.New(reflect.TypeOf(str)).Elem().Addr().Interface()
+				r = append(r, (*swap)[index])
+			}
 		}
 	}
 	return
@@ -208,7 +232,9 @@ func findTag(tag string, key string) (string, bool) {
 func scanType(rows *sql.Rows, modelType reflect.Type, indexes []int) (t []interface{}, err error) {
 	for rows.Next() {
 		initModel := reflect.New(modelType).Interface()
-		if err = rows.Scan(structScan(initModel, indexes)...); err == nil {
+		swapValues := make(map[int]interface{}, 0)
+		if err = rows.Scan(structScan(initModel, indexes, modelType, &swapValues)...); err == nil {
+			swapValuesToBool(initModel, modelType, &swapValues)
 			t = append(t, initModel)
 		}
 	}
