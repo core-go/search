@@ -141,12 +141,29 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			rawJoin = append(rawJoin, *joinFromSqlBuilderTag)
 		}
 
-		if kind == reflect.Ptr && field.IsNil() {
-			continue
-		}
+		ps := false
+		var value2 string
 		if kind == reflect.Ptr {
+			if field.IsNil() {
+				continue
+			}
+			s0, ok0 := x.(*string)
+			if ok0 {
+				if s0 == nil || len(*s0) == 0 {
+					continue
+				}
+				ps = true
+				value2 = *s0
+			}
 			field = field.Elem()
 			kind = field.Kind()
+		}
+		s0, ok0 := x.(string)
+		if ok0 {
+			if len(s0) == 0 {
+				continue
+			}
+			value2 = s0
 		}
 		if v, ok := x.(*SearchModel); ok {
 			if len(v.Excluding) > 0 {
@@ -166,6 +183,80 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 				keyword = strings.TrimSpace(v.Keyword)
 			}
 			continue
+		} else if ps || kind == reflect.String {
+			var searchValue bool
+			if field.Len() > 0 {
+				const defaultKey = "contain"
+				if key, ok := typeOfValue.Field(i).Tag.Lookup("match"); ok {
+					if format, exist := keywordFormat[key]; exist {
+						searchValue = true
+						//if sql == "mysql" {
+						//	value2 = EscapeString(value2)
+						//} else if sql == "postgres" || sql == "mssql" {
+						//	value2 = EscapeStringForSelect(value2)
+						//}
+						value2 = func(format, s string) string {
+							return strings.Replace(format, "?", s, -1)
+						}(format, value2)
+						//value2 = value2 + `%`
+						//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
+						queryValues = append(queryValues, value2)
+					} else {
+						log.Panicf("match not support \"%v\" format\n", key)
+					}
+				} else if format, exist := keywordFormat[defaultKey]; exist {
+					searchValue = true
+					//if sql == "mysql" {
+					//	value2 = EscapeString(value2)
+					//} else if sql == "postgres" || sql == "mssql" {
+					//	value2 = EscapeStringForSelect(value2)
+					//}
+					//value2 = `%` + value2 + `%`
+					value2 = func(format, s string) string {
+						return strings.Replace(format, "?", s, -1)
+					}(format, value2)
+					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
+					queryValues = append(queryValues, value2)
+				} else {
+					searchValue = true
+					value2, valid := x.(string)
+					if !valid {
+						log.Panicf("invalid data \"%v\" \n", x)
+					}
+					value2 = value2 + `%`
+					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
+					queryValues = append(queryValues, value2)
+				}
+			} else if len(keyword) > 0 {
+				if key, ok := typeOfValue.Field(i).Tag.Lookup("keyword"); ok {
+					if format, exist := keywordFormat[key]; exist {
+						//if sql == "mysql" {
+						//	keyword = EscapeString(keyword)
+						//} else if sql == "postgres" || sql == "mssql" {
+						//	keyword = EscapeStringForSelect(keyword)
+						//}
+						if format == `?%` {
+							keyword = keyword + `%`
+						} else if format == `%?%` {
+							keyword = `%` + keyword + `%`
+						} else {
+							log.Panicf("keyword not support \"%v\" format\n", key)
+						}
+
+						queryValues = append(queryValues, keyword)
+					} else {
+						log.Panicf("keyword not support \"%v\" format\n", key)
+					}
+				}
+			}
+			if searchValue {
+				if driver == DriverPostgres { // "postgres"
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ilike`, param))
+				} else {
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, param))
+				}
+				marker++
+			}
 		} else if dateRange, ok := x.(DateRange); ok {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, GreaterEqualThan, param))
 			queryValues = append(queryValues, dateRange.StartDate)
@@ -236,88 +327,6 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 				queryValues = append(queryValues, numberRange.Upper)
 				marker++
 			}
-		} else if kind == reflect.String {
-			var searchValue bool
-			if field.Len() > 0 {
-				const defaultKey = "contain"
-				if key, ok := typeOfValue.Field(i).Tag.Lookup("match"); ok {
-					if format, exist := keywordFormat[key]; exist {
-						searchValue = true
-						value2, valid := x.(string)
-						if !valid {
-							log.Panicf("invalid data \"%v\" \n", x)
-						}
-						//if sql == "mysql" {
-						//	value2 = EscapeString(value2)
-						//} else if sql == "postgres" || sql == "mssql" {
-						//	value2 = EscapeStringForSelect(value2)
-						//}
-						value2 = func(format, s string) string {
-							return strings.Replace(format, "?", s, -1)
-						}(format, value2)
-						//value2 = value2 + `%`
-						//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
-						queryValues = append(queryValues, value2)
-					} else {
-						log.Panicf("match not support \"%v\" format\n", key)
-					}
-				} else if format, exist := keywordFormat[defaultKey]; exist {
-					searchValue = true
-					value2, valid := x.(string)
-					if !valid {
-						log.Panicf("invalid data \"%v\" \n", x)
-					}
-					//if sql == "mysql" {
-					//	value2 = EscapeString(value2)
-					//} else if sql == "postgres" || sql == "mssql" {
-					//	value2 = EscapeStringForSelect(value2)
-					//}
-					//value2 = `%` + value2 + `%`
-					value2 = func(format, s string) string {
-						return strings.Replace(format, "?", s, -1)
-					}(format, value2)
-					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
-					queryValues = append(queryValues, value2)
-				} else {
-					searchValue = true
-					value2, valid := x.(string)
-					if !valid {
-						log.Panicf("invalid data \"%v\" \n", x)
-					}
-					value2 = value2 + `%`
-					//rawConditions = append(rawConditions, fmt.Sprintf("%s %s ?", columnName, Like))
-					queryValues = append(queryValues, value2)
-				}
-			} else if len(keyword) > 0 {
-				if key, ok := typeOfValue.Field(i).Tag.Lookup("keyword"); ok {
-					if format, exist := keywordFormat[key]; exist {
-						//if sql == "mysql" {
-						//	keyword = EscapeString(keyword)
-						//} else if sql == "postgres" || sql == "mssql" {
-						//	keyword = EscapeStringForSelect(keyword)
-						//}
-						if format == `?%` {
-							keyword = keyword + `%`
-						} else if format == `%?%` {
-							keyword = `%` + keyword + `%`
-						} else {
-							log.Panicf("keyword not support \"%v\" format\n", key)
-						}
-
-						queryValues = append(queryValues, keyword)
-					} else {
-						log.Panicf("keyword not support \"%v\" format\n", key)
-					}
-				}
-			}
-			if searchValue {
-				if driver == DriverPostgres { // "postgres"
-					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ilike`, param))
-				} else {
-					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, Like, param))
-				}
-				marker++
-			}
 		} else if kind == reflect.Slice {
 			if field.Len() > 0 {
 				format := fmt.Sprintf("(%s)", BuildParametersFrom(marker, field.Len(), buildParam))
@@ -348,20 +357,4 @@ func ExtractArray(values []interface{}, field interface{}) []interface{} {
 		values = append(values, s.Index(i).Interface())
 	}
 	return values
-}
-func BuildSort(sortString string, modelType reflect.Type) string {
-	var sort = make([]string, 0)
-	sorts := strings.Split(sortString, ",")
-	for i := 0; i < len(sorts); i++ {
-		sortField := strings.TrimSpace(sorts[i])
-		fieldName := sortField
-		c := sortField[0:1]
-		if c == "-" || c == "+" {
-			fieldName = sortField[1:]
-		}
-		columnName := getColumnNameForSearch(modelType, fieldName)
-		sortType := getSortType(c)
-		sort = append(sort, columnName+" "+sortType)
-	}
-	return ` order by ` + strings.Join(sort, ",")
 }
