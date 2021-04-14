@@ -69,11 +69,12 @@ func Count(ctx context.Context, db *sql.DB, sql string, values ...interface{}) (
 	return total, nil
 }
 
-func Query(ctx context.Context, db *sql.DB, results interface{}, fieldsIndex map[string]int, sql string, values ...interface{}) error {
-	rows, er1 := db.QueryContext(ctx, sql, values...)
+func Query(db *sql.DB, results interface{}, fieldsIndex map[string]int, sql string, values ...interface{}) error {
+	rows, er1 := db.Query(sql, values...)
 	if er1 != nil {
 		return er1
 	}
+
 	defer rows.Close()
 	modelType := reflect.TypeOf(results).Elem().Elem()
 
@@ -86,17 +87,7 @@ func Query(ctx context.Context, db *sql.DB, results interface{}, fieldsIndex map
 			reflect.ValueOf(results).Elem().Set(reflect.ValueOf(tb).Elem())
 		}
 	} else {
-		columns, er3 := rows.Columns()
-		if er3 != nil {
-			return er3
-		}
-		fieldsIndexSelected := make([]int, 0)
-		for _, columnsName := range columns {
-			if index, ok := fieldsIndex[columnsName]; ok {
-				fieldsIndexSelected = append(fieldsIndexSelected, index)
-			}
-		}
-		tb, er4 := scanType(rows, modelType, fieldsIndexSelected)
+		tb, er4 := scanType(rows, modelType, fieldsIndex)
 		if er4 != nil {
 			return er4
 		}
@@ -176,24 +167,6 @@ func swapValuesToBool(s interface{}, modelType reflect.Type, swap *map[int]inter
 	}
 }
 
-// StructScan : transfer struct to slice for scan
-func structScan(s interface{}, indexColumns []int, modelType reflect.Type, swap *map[int]interface{}) (r []interface{}) {
-	if s != nil {
-		maps := reflect.Indirect(reflect.ValueOf(s))
-		for _, index := range indexColumns {
-			tagBool := modelType.Field(index).Tag.Get("true")
-			if tagBool == ""{
-				r = append(r, maps.Field(index).Addr().Interface())
-			} else {
-				var str string
-				(*swap)[index] = reflect.New(reflect.TypeOf(str)).Elem().Addr().Interface()
-				r = append(r, (*swap)[index])
-			}
-		}
-	}
-	return
-}
-
 func getColumnIndexes(modelType reflect.Type, driver string) (map[string]int, error) {
 	mapp := make(map[string]int, 0)
 	if modelType.Kind() != reflect.Struct {
@@ -229,12 +202,16 @@ func findTag(tag string, key string) (string, bool) {
 	return "", false
 }
 
-func scanType(rows *sql.Rows, modelType reflect.Type, indexes []int) (t []interface{}, err error) {
+func scanType(rows *sql.Rows, modelType reflect.Type, fieldsIndex map[string]int) (t []interface{}, err error) {
+	columns, er3 := rows.Columns()
+	if er3 != nil {
+		return nil, er3
+	}
 	for rows.Next() {
 		initModel := reflect.New(modelType).Interface()
-		swapValues := make(map[int]interface{}, 0)
-		if err = rows.Scan(structScan(initModel, indexes, modelType, &swapValues)...); err == nil {
-			swapValuesToBool(initModel, modelType, &swapValues)
+		r, swap := structScan(initModel, columns, fieldsIndex, -1)
+		if err = rows.Scan(r...); err == nil {
+			swapValuesToBool(initModel, modelType, &swap)
 			t = append(t, initModel)
 		}
 	}
@@ -242,9 +219,15 @@ func scanType(rows *sql.Rows, modelType reflect.Type, indexes []int) (t []interf
 }
 
 func scanSearchType(rows *sql.Rows, modelType reflect.Type) (t []interface{}, err error) {
+	columns, er0 := rows.Columns()
+	if er0 != nil {
+		return nil, er0
+	}
 	for rows.Next() {
 		gTb := reflect.New(modelType).Interface()
-		if err = rows.Scan(structSearchScan(gTb)...); err == nil {
+		r, swp := structScan(gTb, columns, nil,-1)
+		if err = rows.Scan(r...); err == nil {
+			swapValuesToBool(gTb, modelType, &swp)
 			t = append(t, gTb)
 		}
 	}
@@ -253,18 +236,20 @@ func scanSearchType(rows *sql.Rows, modelType reflect.Type) (t []interface{}, er
 }
 
 func scansSearchAndCount(rows *sql.Rows, modelType reflect.Type, fieldsIndex map[string]int) ([]interface{}, int64, error) {
-	var t []interface{}
 	columns, er0 := rows.Columns()
 	if er0 != nil {
 		return nil, 0, er0
 	}
+	var t []interface{}
 	var count int64
 	for rows.Next() {
 		initModel := reflect.New(modelType).Interface()
 		var c []interface{}
 		c = append(c, &count)
-		c = append(c, structScanWithIgnore(initModel, fieldsIndex, columns, 0)...)
+		r, swap := structScan(initModel, columns, fieldsIndex, 0)
+		c = append(c, r...)
 		if err := rows.Scan(c...); err == nil {
+			swapValuesToBool(initModel, modelType, &swap)
 			t = append(t, initModel)
 		}
 	}
@@ -272,34 +257,46 @@ func scansSearchAndCount(rows *sql.Rows, modelType reflect.Type, fieldsIndex map
 }
 
 // StructScan : transfer struct to slice for scan
-func structScanWithIgnore(s interface{}, fieldsIndex map[string]int, columns []string, indexIgnore int) (r []interface{}) {
+func structScan(s interface{}, columns []string, fieldsIndex map[string]int, indexIgnore int) (r []interface{}, swapValues map[int]interface{}) {
 	if s != nil {
 		maps := reflect.Indirect(reflect.ValueOf(s))
-		fieldsIndexSelected := make([]int, 0)
+		swapValues = make(map[int]interface{}, 0)
+		modelType := reflect.TypeOf(s).Elem()
 		for i, columnsName := range columns {
 			if i == indexIgnore {
 				continue
 			}
-			if index, ok := fieldsIndex[columnsName]; ok {
-				fieldsIndexSelected = append(fieldsIndexSelected, index)
-				r = append(r, maps.Field(index).Addr().Interface())
+			var index int
+			var ok bool
+			var modelField reflect.StructField
+			var valueField reflect.Value
+			if fieldsIndex == nil {
+				if modelField, ok = modelType.FieldByName(columnsName); !ok {
+					var t interface{}
+					r = append(r, &t)
+					continue
+				}
+				valueField = maps.FieldByName(columnsName)
 			} else {
-				var t interface{}
-				r = append(r, &t)
+				if index, ok = fieldsIndex[columnsName]; !ok {
+					var t interface{}
+					r = append(r, &t)
+					continue
+				}
+				modelField = modelType.Field(index)
+				valueField =maps.Field(index)
 			}
+			tagBool := modelField.Tag.Get("true")
+			if tagBool == ""{
+				r = append(r, valueField.Addr().Interface())
+			} else {
+				var str string
+				swapValues[index] = reflect.New(reflect.TypeOf(str)).Elem().Addr().Interface()
+				r = append(r, swapValues[index])
+			}
+
 		}
 	}
-	return
-}
-
-func structSearchScan(s interface{}) (r []interface{}) {
-	if s != nil {
-		vals := reflect.Indirect(reflect.ValueOf(s))
-		for i := 0; i < vals.NumField(); i++ {
-			r = append(r, vals.Field(i).Addr().Interface())
-		}
-	}
-
 	return
 }
 func getColumnNameForSearch(modelType reflect.Type, sortField string) string {
