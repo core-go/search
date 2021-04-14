@@ -219,13 +219,9 @@ func scanType(rows *sql.Rows, modelType reflect.Type, fieldsIndex map[string]int
 }
 
 func scanSearchType(rows *sql.Rows, modelType reflect.Type) (t []interface{}, err error) {
-	columns, er0 := rows.Columns()
-	if er0 != nil {
-		return nil, er0
-	}
 	for rows.Next() {
 		gTb := reflect.New(modelType).Interface()
-		r, swp := structScan(gTb, columns, nil,-1)
+		r, swp := structScan(gTb, nil, nil,-1)
 		if err = rows.Scan(r...); err == nil {
 			swapValuesToBool(gTb, modelType, &swp)
 			t = append(t, gTb)
@@ -262,6 +258,21 @@ func structScan(s interface{}, columns []string, fieldsIndex map[string]int, ind
 		maps := reflect.Indirect(reflect.ValueOf(s))
 		swapValues = make(map[int]interface{}, 0)
 		modelType := reflect.TypeOf(s).Elem()
+
+		if columns == nil {
+			for i := 0; i < maps.NumField(); i++ {
+				tagBool := modelType.Field(i).Tag.Get("true")
+				if tagBool == ""{
+					r = append(r, maps.Field(i).Addr().Interface())
+				} else {
+					var str string
+					swapValues[i] = reflect.New(reflect.TypeOf(str)).Elem().Addr().Interface()
+					r = append(r, swapValues[i])
+				}
+			}
+			return
+		}
+
 		for i, columnsName := range columns {
 			if i == indexIgnore {
 				continue
