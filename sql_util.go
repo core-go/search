@@ -69,8 +69,8 @@ func Count(ctx context.Context, db *sql.DB, sql string, values ...interface{}) (
 	return total, nil
 }
 
-func Query(db *sql.DB, results interface{}, fieldsIndex map[string]int, sql string, values ...interface{}) error {
-	rows, er1 := db.Query(sql, values...)
+func Query(ctx context.Context, db *sql.DB, results interface{}, fieldsIndex map[string]int, sql string, values ...interface{}) error {
+	rows, er1 := db.QueryContext(ctx, sql, values...)
 	if er1 != nil {
 		return er1
 	}
