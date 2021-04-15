@@ -150,9 +150,10 @@ func appendToArray(arr interface{}, item interface{}) interface{} {
 	return arr
 }
 
-func swapValuesToBool(s interface{}, modelType reflect.Type, swap *map[int]interface{})  {
+func swapValuesToBool(s interface{}, swap *map[int]interface{})  {
 	if s != nil {
 		maps := reflect.Indirect(reflect.ValueOf(s))
+		modelType := reflect.TypeOf(s).Elem()
 		for index, element := range (*swap){
 			var isBool bool
 			boolStr := modelType.Field(index).Tag.Get("true")
@@ -211,7 +212,7 @@ func scanType(rows *sql.Rows, modelType reflect.Type, fieldsIndex map[string]int
 		initModel := reflect.New(modelType).Interface()
 		r, swap := structScan(initModel, columns, fieldsIndex, -1)
 		if err = rows.Scan(r...); err == nil {
-			swapValuesToBool(initModel, modelType, &swap)
+			swapValuesToBool(initModel, &swap)
 			t = append(t, initModel)
 		}
 	}
@@ -223,7 +224,7 @@ func scanSearchType(rows *sql.Rows, modelType reflect.Type) (t []interface{}, er
 		gTb := reflect.New(modelType).Interface()
 		r, swp := structScan(gTb, nil, nil,-1)
 		if err = rows.Scan(r...); err == nil {
-			swapValuesToBool(gTb, modelType, &swp)
+			swapValuesToBool(gTb, &swp)
 			t = append(t, gTb)
 		}
 	}
@@ -245,7 +246,7 @@ func scansSearchAndCount(rows *sql.Rows, modelType reflect.Type, fieldsIndex map
 		r, swap := structScan(initModel, columns, fieldsIndex, 0)
 		c = append(c, r...)
 		if err := rows.Scan(c...); err == nil {
-			swapValuesToBool(initModel, modelType, &swap)
+			swapValuesToBool(initModel, &swap)
 			t = append(t, initModel)
 		}
 	}
