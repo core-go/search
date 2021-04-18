@@ -52,10 +52,7 @@ func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, i
 	if len(options) >= 2 {
 		resource = options[1]
 	} else {
-		name := searchModelType.Name()
-		if len(name) >= 3 && strings.HasSuffix(name, "SM") {
-			name = name[0 : len(name)-2]
-		}
+		name := modelType.Name()
 		resource = buildResourceName(name)
 	}
 	if len(options) >= 3 {
