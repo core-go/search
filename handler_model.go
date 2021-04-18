@@ -1,9 +1,6 @@
 package search
 
-import (
-	"errors"
-	"reflect"
-)
+import "reflect"
 
 func SetUserId(sm interface{}, currentUserId string) {
 	if s, ok := sm.(*SearchModel); ok { // Is SearchModel struct
@@ -57,7 +54,7 @@ func RepairSearchModel(searchModel *SearchModel, currentUserId string) {
 	if searchModel.PageSize != 0 && searchModel.Limit == 0 {
 		searchModel.Limit = searchModel.PageSize
 	}
-	if searchModel.FirstPageSize !=0 && searchModel.FirstLimit == 0 {
+	if searchModel.FirstPageSize != 0 && searchModel.FirstLimit == 0 {
 		searchModel.FirstLimit = searchModel.FirstPageSize
 	}
 
@@ -77,20 +74,5 @@ func RepairSearchModel(searchModel *SearchModel, currentUserId string) {
 
 	if searchModel.Page != pageIndex {
 		searchModel.Page = pageIndex
-	}
-}
-
-func ExtractFullSearch(m interface{}) (int64, int64, int64, []string, error) {
-	if sModel, ok := m.(*SearchModel); ok {
-		return sModel.Page, sModel.Limit, sModel.FirstLimit, sModel.Fields, nil
-	} else {
-		value := reflect.Indirect(reflect.ValueOf(m))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, sModel1.Fields, nil
-			}
-		}
-		return 0, 0, 0, nil, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }

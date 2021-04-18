@@ -6,12 +6,12 @@ import (
 )
 
 type Extractor struct {
-	Page string
-	Limit string
+	Page       string
+	Limit      string
 	FirstLimit string
 }
 
-func NewExtractor(options...string) *Extractor {
+func NewExtractor(options ...string) *Extractor {
 	var page, limit, firstLimit string
 	if len(options) >= 1 && len(options[0]) > 0 {
 		page = options[0]
@@ -61,7 +61,7 @@ func (e *Extractor) Extract(m interface{}) (int64, int64, int64, error) {
 					firstLimit = p
 				}
 			}
-			if page >= 0 && limit >=0 && firstLimit >= 0 {
+			if page >= 0 && limit >= 0 && firstLimit >= 0 {
 				return page, limit, firstLimit, nil
 			}
 		}
@@ -69,17 +69,32 @@ func (e *Extractor) Extract(m interface{}) (int64, int64, int64, error) {
 	return page, limit, firstLimit, nil
 }
 
-func ExtractSearch(m interface{}) (int64, int64, int64, error) {
+func Extract(m interface{}) (int64, int64, int64, []string, string, string, error) {
 	if sModel, ok := m.(*SearchModel); ok {
-		return sModel.Page, sModel.Limit, sModel.FirstLimit, nil
+		return sModel.Page, sModel.Limit, sModel.FirstLimit, sModel.Fields, sModel.Sort, sModel.RefId, nil
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, nil
+				return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, sModel1.Fields, sModel.Sort, sModel.RefId, nil
 			}
 		}
-		return 0, 0, 0, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
+		return 0, 0, 0, nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
+	}
+}
+
+func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string, error) {
+	if sModel, ok := m.(*SearchModel); ok {
+		return sModel.Fields, sModel.Sort, sModel.RefId, nil
+	} else {
+		value := reflect.Indirect(reflect.ValueOf(m))
+		numField := value.NumField()
+		for i := 0; i < numField; i++ {
+			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
+				return sModel1.Fields, sModel.Sort, sModel.RefId, nil
+			}
+		}
+		return nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }

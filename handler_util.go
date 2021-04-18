@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func BuildResourceName(s string) string {
+func buildResourceName(s string) string {
 	s2 := strings.ToLower(s)
 	s3 := ""
 	for i := range s {

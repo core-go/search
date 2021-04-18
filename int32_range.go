@@ -1,8 +1,8 @@
 package search
 
 type Int32Range struct {
-	Min   *int32 `json:"min,omitempty" bson:"min,omitempty" gorm:"column:min"`
-	Max   *int32 `json:"max,omitempty" bson:"max,omitempty" gorm:"column:max"`
-	Lower *int32 `json:"lower,omitempty" bson:"lower,omitempty" gorm:"column:lower"`
-	Upper *int32 `json:"upper,omitempty" bson:"upper,omitempty" gorm:"column:upper"`
+	Min   *int32 `mapstructure:"min" json:"min,omitempty" gorm:"column:min" bson:"min,omitempty" dynamodbav:"min,omitempty" firestore:"min,omitempty"`
+	Max   *int32 `mapstructure:"max" json:"max,omitempty" gorm:"column:max" bson:"max,omitempty" dynamodbav:"max,omitempty" firestore:"max,omitempty"`
+	Lower *int32 `mapstructure:"lower" json:"lower,omitempty" gorm:"column:lower" bson:"lower,omitempty" dynamodbav:"lower,omitempty" firestore:"lower,omitempty"`
+	Upper *int32 `mapstructure:"upper" json:"upper,omitempty" gorm:"column:upper" bson:"upper,omitempty" dynamodbav:"upper,omitempty" firestore:"upper,omitempty"`
 }

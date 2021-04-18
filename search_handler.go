@@ -56,7 +56,7 @@ func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, i
 		if len(name) >= 3 && strings.HasSuffix(name, "SM") {
 			name = name[0 : len(name)-2]
 		}
-		resource = BuildResourceName(name)
+		resource = buildResourceName(name)
 	}
 	if len(options) >= 3 {
 		action = options[2]
@@ -80,7 +80,7 @@ func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, inter
 		if len(name) >= 3 && strings.HasSuffix(name, "SM") {
 			name = name[0 : len(name)-2]
 		}
-		resource = BuildResourceName(name)
+		resource = buildResourceName(name)
 	}
 	if len(options) >= 2 {
 		action = options[1]

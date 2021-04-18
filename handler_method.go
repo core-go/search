@@ -5,13 +5,15 @@ import (
 	"reflect"
 )
 
+const internalServerError = "Internal Server Error"
+
 func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	searchModel, x, er0 := BuildSearchModel(r, c.searchModelType, c.isExtendedSearchModelType, c.userId, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
 	if er0 != nil {
 		http.Error(w, "cannot decode search model: "+er0.Error(), http.StatusBadRequest)
 		return
 	}
-	pageIndex, pageSize, firstPageSize, fs, er1 := ExtractFullSearch(searchModel)
+	pageIndex, pageSize, firstPageSize, fs, _, _, er1 := Extract(searchModel)
 	if er1 != nil {
 		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
 		return

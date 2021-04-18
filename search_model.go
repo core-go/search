@@ -1,8 +1,6 @@
 package search
 
-import (
-	"reflect"
-)
+import "reflect"
 
 type SearchModel struct {
 	PageIndex     int64 `mapstructure:"page_index" json:"pageIndex,omitempty" gorm:"column:pageindex" bson:"pageIndex,omitempty" dynamodbav:"pageIndex,omitempty" firestore:"pageIndex,omitempty"`
