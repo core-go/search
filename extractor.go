@@ -83,18 +83,58 @@ func Extract(m interface{}) (int64, int64, int64, []string, string, string, erro
 		return 0, 0, 0, nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }
-
-func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string, error) {
+func GetFieldsAndSort(m interface{}) ([]string, string) {
+	f, s, _ := GetFieldsAndSortAndRefId(m)
+	return f, s
+}
+func GetFieldsAndRefId(m interface{}) ([]string, string) {
+	f, _, s := GetFieldsAndSortAndRefId(m)
+	return f, s
+}
+func GetSortAndRefId(m interface{}) (string, string) {
+	_, f, s := GetFieldsAndSortAndRefId(m)
+	return f, s
+}
+func GetFields(m interface{}) []string {
+	f, _, _ := GetFieldsAndSortAndRefId(m)
+	return f
+}
+func GetSort(m interface{}) string {
+	_, _, s := GetFieldsAndSortAndRefId(m)
+	return s
+}
+func GetRefId(m interface{}) string {
+	_, s, _ := GetFieldsAndSortAndRefId(m)
+	return s
+}
+func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string) {
+	var fields []string
+	var sort, refId string
 	if sModel, ok := m.(*SearchModel); ok {
-		return sModel.Fields, sModel.Sort, sModel.RefId, nil
+		return sModel.Fields, sModel.Sort, sModel.RefId
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
+			fn := value.Type().Field(i).Name
+			if fn == "Sort" {
+				if s, ok := value.Field(i).Interface().(string); ok {
+					sort = s
+				}
+			} else if fn == "Fields" {
+				if s, ok := value.Field(i).Interface().([]string); ok {
+					fields = s
+				}
+			} else if fn == "RefId" {
+				if s, ok := value.Field(i).Interface().(string); ok {
+					refId = s
+				}
+			}
 			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.Fields, sModel.Sort, sModel.RefId, nil
+				return sModel1.Fields, sModel.Sort, sModel.RefId
 			}
 		}
-		return nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
+		return fields, sort, refId
 	}
+
 }
