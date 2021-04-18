@@ -77,7 +77,7 @@ func Extract(m interface{}) (int64, int64, int64, []string, string, string, erro
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, sModel1.Fields, sModel.Sort, sModel.RefId, nil
+				return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, sModel1.Fields, sModel1.Sort, sModel1.RefId, nil
 			}
 		}
 		return 0, 0, 0, nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
