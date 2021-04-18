@@ -88,24 +88,24 @@ func GetFieldsAndSort(m interface{}) ([]string, string) {
 	return f, s
 }
 func GetFieldsAndRefId(m interface{}) ([]string, string) {
-	f, _, s := GetFieldsAndSortAndRefId(m)
-	return f, s
+	f, _, r := GetFieldsAndSortAndRefId(m)
+	return f, r
 }
 func GetSortAndRefId(m interface{}) (string, string) {
-	_, f, s := GetFieldsAndSortAndRefId(m)
-	return f, s
+	_, s, r := GetFieldsAndSortAndRefId(m)
+	return s, r
 }
 func GetFields(m interface{}) []string {
 	f, _, _ := GetFieldsAndSortAndRefId(m)
 	return f
 }
 func GetSort(m interface{}) string {
-	_, _, s := GetFieldsAndSortAndRefId(m)
+	_, s, _ := GetFieldsAndSortAndRefId(m)
 	return s
 }
 func GetRefId(m interface{}) string {
-	_, s, _ := GetFieldsAndSortAndRefId(m)
-	return s
+	_, _, r := GetFieldsAndSortAndRefId(m)
+	return r
 }
 func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string) {
 	var fields []string
@@ -131,7 +131,7 @@ func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string) {
 				}
 			}
 			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.Fields, sModel.Sort, sModel.RefId
+				return sModel1.Fields, sModel1.Sort, sModel1.RefId
 			}
 		}
 		return fields, sort, refId
