@@ -12,21 +12,21 @@ const (
 	layout     string = "2006-01-02T15:04:05"
 )
 
-func BuildCsv(rows []string, fields []string, valueOfmodels reflect.Value, embedFieldName string) []string {
-	if lengthResult := valueOfmodels.Len(); lengthResult > 0 {
-		model := valueOfmodels.Index(0).Interface()
+func BuildCsv(rows []string, fields []string, valueOfModels reflect.Value, embedFieldName string) []string {
+	if lengthResult := valueOfModels.Len(); lengthResult > 0 {
+		model := valueOfModels.Index(0).Interface()
 
-		firstLayerIndexes, secondLayerIndexes := findIndexByTagJsonOrEmbededFieldName(model, fields, embedFieldName)
+		firstLayerIndexes, secondLayerIndexes := findIndexByTagJsonOrEmbeddedFieldName(model, fields, embedFieldName)
 
 		for i := 0; i < lengthResult; i++ {
 			var cols []string
-			valueOfmodel := valueOfmodels.Index(i)
+			valueOfModel := valueOfModels.Index(i)
 			for _, fieldName := range fields {
 				if index, exist := firstLayerIndexes[fieldName]; exist {
-					valueOfFieldName := valueOfmodel.Field(index)
+					valueOfFieldName := valueOfModel.Field(index)
 					cols = AppendColumns(valueOfFieldName, cols)
 				} else if index, exist := secondLayerIndexes[fieldName]; exist {
-					embedFieldValue := reflect.Indirect(valueOfmodel.Field(firstLayerIndexes[embedFieldName]))
+					embedFieldValue := reflect.Indirect(valueOfModel.Field(firstLayerIndexes[embedFieldName]))
 					valueOfFieldName := embedFieldValue.Field(index)
 					cols = AppendColumns(valueOfFieldName, cols)
 				}
@@ -38,12 +38,9 @@ func BuildCsv(rows []string, fields []string, valueOfmodels reflect.Value, embed
 }
 
 func AppendColumns(value reflect.Value, cols []string) []string {
-	const e = ""
 	const s = "string"
 	const in = "int"
 	const f = "float64"
-	const x = "\""
-	const y = "\"\""
 	var v = fmt.Sprintf("%v", value)
 	if v == "" || v == "0" || v == "<nil>" {
 		cols = append(cols, "")
@@ -72,7 +69,7 @@ func AppendColumns(value reflect.Value, cols []string) []string {
 	return cols
 }
 
-func findIndexByTagJsonOrEmbededFieldName(model interface{}, jsonNames []string, embedFieldName string) (firstLayerIndex map[string]int, secondLayerIndexes map[string]int) {
+func findIndexByTagJsonOrEmbeddedFieldName(model interface{}, jsonNames []string, embedFieldName string) (firstLayerIndex map[string]int, secondLayerIndexes map[string]int) {
 	tmp := make([]string, len(jsonNames))
 	copy(tmp, jsonNames)
 

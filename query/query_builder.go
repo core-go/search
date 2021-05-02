@@ -1,8 +1,9 @@
-package search
+package query
 
 import (
 	"database/sql"
 	"fmt"
+	s "github.com/common-go/search"
 	"log"
 	"reflect"
 	"strconv"
@@ -21,14 +22,14 @@ const (
 	asc              = "asc"
 )
 
-type QueryBuilder struct {
+type Builder struct {
 	TableName  string
 	ModelType  reflect.Type
 	Driver     string
 	BuildParam func(int) string
 }
 
-func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *QueryBuilder {
+func NewBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *Builder {
 	driver := getDriver(db)
 	var build func(int) string
 	if len(options) > 0 {
@@ -36,10 +37,10 @@ func NewQueryBuilder(db *sql.DB, tableName string, modelType reflect.Type, optio
 	} else {
 		build = getBuild(db)
 	}
-	return NewDefaultQueryBuilder(tableName, modelType, driver, build)
+	return NewBuilderWithDriver(tableName, modelType, driver, build)
 }
-func NewDefaultQueryBuilder(tableName string, modelType reflect.Type, driver string, buildParam func(int) string) *QueryBuilder {
-	return &QueryBuilder{TableName: tableName, ModelType: modelType, Driver: driver, BuildParam: buildParam}
+func NewBuilderWithDriver(tableName string, modelType reflect.Type, driver string, buildParam func(int) string) *Builder {
+	return &Builder{TableName: tableName, ModelType: modelType, Driver: driver, BuildParam: buildParam}
 }
 
 const (
@@ -80,7 +81,7 @@ func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	}
 	return nil*/
 }
-func (b *QueryBuilder) BuildQuery(sm interface{}) (string, []interface{}) {
+func (b *Builder) BuildQuery(sm interface{}) (string, []interface{}) {
 	return BuildQuery(sm, b.TableName, b.ModelType, b.Driver, b.BuildParam)
 }
 func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver string, buildParam func(int) string) (string, []interface{}) {
@@ -110,7 +111,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 		typeOfField := value.Type().Field(i)
 		param := buildParam(marker + 1)
 
-		if v, ok := x.(*SearchModel); ok {
+		if v, ok := x.(*s.SearchModel); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
 					i, _, columnName := getFieldByJson(modelType, key)
@@ -177,7 +178,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			}
 			value2 = s0
 		}
-		if v, ok := x.(*SearchModel); ok {
+		if v, ok := x.(*s.SearchModel); ok {
 			if len(v.Excluding) > 0 {
 				for key, val := range v.Excluding {
 					index, _, columnName := getFieldByJson(value.Type(), key)
@@ -269,7 +270,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 				}
 				marker++
 			}
-		} else if dateRange, ok := x.(DateRange); ok {
+		} else if dateRange, ok := x.(s.DateRange); ok {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
 			queryValues = append(queryValues, dateRange.StartDate)
 			var eDate = dateRange.EndDate.Add(time.Hour * 24)
@@ -277,7 +278,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 			queryValues = append(queryValues, dateRange.EndDate)
 			marker += 2
-		} else if dateRange, ok := x.(*DateRange); ok && dateRange != nil {
+		} else if dateRange, ok := x.(*s.DateRange); ok && dateRange != nil {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
 			queryValues = append(queryValues, dateRange.StartDate)
 			var eDate = dateRange.EndDate.Add(time.Hour * 24)
@@ -285,7 +286,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 			queryValues = append(queryValues, dateRange.EndDate)
 			marker += 2
-		} else if dateTime, ok := x.(TimeRange); ok {
+		} else if dateTime, ok := x.(s.TimeRange); ok {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
 			queryValues = append(queryValues, dateTime.StartTime)
 			var eDate = dateTime.EndTime.Add(time.Hour * 24)
@@ -293,7 +294,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 			queryValues = append(queryValues, dateTime.EndTime)
 			marker += 2
-		} else if dateTime, ok := x.(*TimeRange); ok && dateTime != nil {
+		} else if dateTime, ok := x.(*s.TimeRange); ok && dateTime != nil {
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
 			queryValues = append(queryValues, dateTime.StartTime)
 			var eDate = dateTime.EndTime.Add(time.Hour * 24)
@@ -301,7 +302,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 			queryValues = append(queryValues, dateTime.EndTime)
 			marker += 2
-		} else if numberRange, ok := x.(NumberRange); ok {
+		} else if numberRange, ok := x.(s.NumberRange); ok {
 			if numberRange.Min != nil {
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
 				queryValues = append(queryValues, numberRange.Min)
@@ -320,7 +321,7 @@ func BuildQuery(sm interface{}, tableName string, modelType reflect.Type, driver
 				queryValues = append(queryValues, numberRange.Upper)
 				marker++
 			}
-		} else if numberRange, ok := x.(*NumberRange); ok && numberRange != nil {
+		} else if numberRange, ok := x.(*s.NumberRange); ok && numberRange != nil {
 			if numberRange.Min != nil {
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
 				queryValues = append(queryValues, numberRange.Min)
