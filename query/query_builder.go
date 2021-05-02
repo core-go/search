@@ -3,7 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	s "github.com/common-go/search"
+	s "github.com/core-go/search"
 	"log"
 	"reflect"
 	"strconv"
