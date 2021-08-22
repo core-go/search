@@ -13,24 +13,24 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot decode search model: "+er0.Error(), http.StatusBadRequest)
 		return
 	}
-	pageIndex, pageSize, firstPageSize, fs, _, _, er1 := Extract(searchModel)
+	limit, offset, fs, _, _, er1 := Extract(searchModel)
 	if er1 != nil {
 		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
 		return
 	}
 	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	count, er2 := c.search(r.Context(), searchModel, models, pageIndex, pageSize, firstPageSize)
+	count, nextPageToken, er2 := c.search(r.Context(), searchModel, models, limit, offset)
 	if er2 != nil {
 		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
 		return
 	}
 
-	result, isLastPage := BuildResultMap(models, count, pageIndex, pageSize, firstPageSize, c.Config)
+	result := BuildResultMap(models, count, nextPageToken, c.Config)
 	if x == -1 {
 		succeed(w, r, http.StatusOK, result, c.Log, c.Resource, c.Action)
 	} else if c.quickSearch && x == 1 {
-		result1, ok := ResultToCsv(fs, models, count, isLastPage, c.embedField)
+		result1, ok := ResultToCsv(fs, models, count, nextPageToken, c.embedField)
 		if ok {
 			succeed(w, r, http.StatusOK, result1, c.Log, c.Resource, c.Action)
 		} else {

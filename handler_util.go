@@ -128,20 +128,19 @@ func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedS
 	SetUserId(searchModel, userId)
 	return searchModel, x, nil
 }
-func BuildResultMap(models interface{}, count int64, pageIndex int64, pageSize int64, firstPageSize int64, config SearchResultConfig) (map[string]interface{}, bool) {
+func BuildResultMap(models interface{}, count int64, nextPageToken string, config SearchResultConfig) map[string]interface{} {
 	result := make(map[string]interface{})
-	isLastPage := IsLastPage(models, count, pageIndex, pageSize, firstPageSize)
 
 	result[config.Total] = count
-	if isLastPage {
-		result[config.LastPage] = isLastPage
-	}
 	result[config.Results] = models
-	return result, isLastPage
+	if len(nextPageToken) > 0 {
+		result[config.NextPageToken] = nextPageToken
+	}
+	return result
 }
-func ResultToCsv(fields []string, models interface{}, count int64, isLastPage bool, embedField string) (string, bool) {
+func ResultToCsv(fields []string, models interface{}, count int64, nextPageToken string, embedField string) (string, bool) {
 	if len(fields) > 0 {
-		result1 := ToCsv(fields, models, count, isLastPage, embedField)
+		result1 := ToCsv(fields, models, count, nextPageToken, embedField)
 		return result1, true
 	} else {
 		return "", false

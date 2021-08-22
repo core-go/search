@@ -69,18 +69,44 @@ func (e *Extractor) Extract(m interface{}) (int64, int64, int64, error) {
 	return page, limit, firstLimit, nil
 }
 
-func Extract(m interface{}) (int64, int64, int64, []string, string, string, error) {
+func Extract(m interface{}) (int64, int64, []string, string, string, error) {
 	if sModel, ok := m.(*SearchModel); ok {
-		return sModel.Page, sModel.Limit, sModel.FirstLimit, sModel.Fields, sModel.Sort, sModel.RefId, nil
+		var limit, offset int64
+		if sModel.FirstLimit > 0 {
+			if sModel.Page == 1 {
+				limit = sModel.FirstLimit
+				offset = 0
+			} else {
+				limit = sModel.Limit
+				offset = sModel.Limit*(sModel.Page-2) + sModel.FirstLimit
+			}
+		} else {
+			limit = sModel.Limit
+			offset = sModel.Limit * (sModel.Page - 1)
+		}
+		return limit, offset, sModel.Fields, sModel.Sort, sModel.RefId, nil
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
 			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
-				return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, sModel1.Fields, sModel1.Sort, sModel1.RefId, nil
+				var limit1, offset1 int64
+				if sModel1.FirstLimit > 0 {
+					if sModel1.Page == 1 {
+						limit1 = sModel1.FirstLimit
+						offset1 = 0
+					} else {
+						limit1 = sModel1.Limit
+						offset1 = sModel1.Limit*(sModel1.Page-2) + sModel1.FirstLimit
+					}
+				} else {
+					limit1 = sModel1.Limit
+					offset1 = sModel1.Limit * (sModel1.Page - 1)
+				}
+				return limit1, offset1, sModel1.Fields, sModel1.Sort, sModel1.RefId, nil
 			}
 		}
-		return 0, 0, 0, nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
+		return 0, 0, nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }
 func GetFieldsAndSort(m interface{}) ([]string, string) {
