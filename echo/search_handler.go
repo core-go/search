@@ -106,37 +106,35 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 
 const internalServerError = "Internal Server Error"
 
-func (c *SearchHandler) Search() echo.HandlerFunc {
-	return func(ctx echo.Context) error {
-		r := ctx.Request()
-		searchModel, x, er0 := s.BuildSearchModel(r, c.searchModelType, c.isExtendedSearchModelType, c.userId, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
-		if er0 != nil {
-			return ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode search model: "+er0.Error())
-		}
-		limit, offset, fs, _, _, er1 := s.Extract(searchModel)
-		if er1 != nil {
-			return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
-		}
-		modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
-		models := reflect.New(modelsType).Interface()
-		count, nextPageToken, er2 := c.search(r.Context(), searchModel, models, limit, offset)
-		if er2 != nil {
-			return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
-		}
+func (c *SearchHandler) Search(ctx echo.Context) error {
+	r := ctx.Request()
+	searchModel, x, er0 := s.BuildSearchModel(r, c.searchModelType, c.isExtendedSearchModelType, c.userId, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
+	if er0 != nil {
+		return ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode search model: "+er0.Error())
+	}
+	limit, offset, fs, _, _, er1 := s.Extract(searchModel)
+	if er1 != nil {
+		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
+	}
+	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
+	models := reflect.New(modelsType).Interface()
+	count, nextPageToken, er2 := c.search(r.Context(), searchModel, models, limit, offset)
+	if er2 != nil {
+		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
+	}
 
-		result := s.BuildResultMap(models, count, nextPageToken, c.Config)
-		if x == -1 {
-			return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
-		} else if c.quickSearch && x == 1 {
-			result1, ok := s.ResultToCsv(fs, models, count, nextPageToken, c.embedField)
-			if ok {
-				return succeed(ctx, http.StatusOK, result1, c.Log, c.Resource, c.Action)
-			} else {
-				return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
-			}
+	result := s.BuildResultMap(models, count, nextPageToken, c.Config)
+	if x == -1 {
+		return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
+	} else if c.quickSearch && x == 1 {
+		result1, ok := s.ResultToCsv(fs, models, count, nextPageToken, c.embedField)
+		if ok {
+			return succeed(ctx, http.StatusOK, result1, c.Log, c.Resource, c.Action)
 		} else {
 			return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
 		}
+	} else {
+		return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
 	}
 }
 
