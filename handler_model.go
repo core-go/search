@@ -3,41 +3,41 @@ package search
 import "reflect"
 
 func SetUserId(sm interface{}, currentUserId string) {
-	if s, ok := sm.(*SearchModel); ok { // Is SearchModel struct
-		RepairSearchModel(s, currentUserId)
-	} else { // Is extended from SearchModel struct
+	if s, ok := sm.(*Filter); ok { // Is Filter struct
+		RepairFilter(s, currentUserId)
+	} else { // Is extended from Filter struct
 		value := reflect.Indirect(reflect.ValueOf(sm))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
-			// Find SearchModel field of extended struct
-			if s, ok := value.Field(i).Interface().(*SearchModel); ok {
-				RepairSearchModel(s, currentUserId)
+			// Find Filter field of extended struct
+			if s, ok := value.Field(i).Interface().(*Filter); ok {
+				RepairFilter(s, currentUserId)
 				break
 			}
 		}
 	}
 }
-func CreateSearchModel(searchModelType reflect.Type, isExtendedSearchModelType bool) interface{} {
-	var searchModel = reflect.New(searchModelType).Interface()
-	if isExtendedSearchModelType {
-		value := reflect.Indirect(reflect.ValueOf(searchModel))
+func CreateFilter(filterType reflect.Type, isExtendedFilter bool) interface{} {
+	var filter = reflect.New(filterType).Interface()
+	if isExtendedFilter {
+		value := reflect.Indirect(reflect.ValueOf(filter))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
-			// Find SearchModel field of extended struct
-			if _, ok := value.Field(i).Interface().(*SearchModel); ok {
-				// Init SearchModel to avoid nil value
-				value.Field(i).Set(reflect.ValueOf(&SearchModel{}))
+			// Find Filter field of extended struct
+			if _, ok := value.Field(i).Interface().(*Filter); ok {
+				// Init Filter to avoid nil value
+				value.Field(i).Set(reflect.ValueOf(&Filter{}))
 				break
 			}
 		}
 	}
-	return searchModel
+	return filter
 }
 
-func FindSearchModelIndex(searchModelType reflect.Type) int {
-	numField := searchModelType.NumField()
+func FindFilterIndex(filterType reflect.Type) int {
+	numField := filterType.NumField()
 	for i := 0; i < numField; i++ {
-		if searchModelType.Field(i).Type == reflect.TypeOf(&SearchModel{}) {
+		if filterType.Field(i).Type == reflect.TypeOf(&Filter{}) {
 			return i
 		}
 	}
@@ -45,34 +45,34 @@ func FindSearchModelIndex(searchModelType reflect.Type) int {
 }
 
 // Check valid and change value of pagination to correct
-func RepairSearchModel(searchModel *SearchModel, currentUserId string) {
-	searchModel.CurrentUserId = currentUserId
+func RepairFilter(filter *Filter, currentUserId string) {
+	filter.CurrentUserId = currentUserId
 
-	if searchModel.PageIndex != 0 && searchModel.Page == 0 {
-		searchModel.Page = searchModel.PageIndex
+	if filter.PageIndex != 0 && filter.Page == 0 {
+		filter.Page = filter.PageIndex
 	}
-	if searchModel.PageSize != 0 && searchModel.Limit == 0 {
-		searchModel.Limit = searchModel.PageSize
+	if filter.PageSize != 0 && filter.Limit == 0 {
+		filter.Limit = filter.PageSize
 	}
-	if searchModel.FirstPageSize != 0 && searchModel.FirstLimit == 0 {
-		searchModel.FirstLimit = searchModel.FirstPageSize
+	if filter.FirstPageSize != 0 && filter.FirstLimit == 0 {
+		filter.FirstLimit = filter.FirstPageSize
 	}
 
-	pageSize := searchModel.Limit
+	pageSize := filter.Limit
 	if pageSize > MaxPageSizeDefault {
 		pageSize = PageSizeDefault
 	}
 
-	pageIndex := searchModel.Page
-	if searchModel.Page < 1 {
+	pageIndex := filter.Page
+	if filter.Page < 1 {
 		pageIndex = 1
 	}
 
-	if searchModel.Limit != pageSize {
-		searchModel.Limit = pageSize
+	if filter.Limit != pageSize {
+		filter.Limit = pageSize
 	}
 
-	if searchModel.Page != pageIndex {
-		searchModel.Page = pageIndex
+	if filter.Page != pageIndex {
+		filter.Page = pageIndex
 	}
 }

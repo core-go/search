@@ -26,8 +26,8 @@ func BuildResourceName(s string) string {
 	}
 	return s3
 }
-func UrlToModel(searchModel interface{}, params url.Values, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) interface{} {
-	value := reflect.Indirect(reflect.ValueOf(searchModel))
+func UrlToModel(filter interface{}, params url.Values, filterParamIndex map[string]int, filterIndex int, paramIndex map[string]int) interface{} {
+	value := reflect.Indirect(reflect.ValueOf(filter))
 	if value.Kind() == reflect.Ptr {
 		value = reflect.Indirect(value)
 	}
@@ -37,7 +37,7 @@ func UrlToModel(searchModel interface{}, params url.Values, searchModelParamInde
 		if len(valueArr) > 0 {
 			paramValue = valueArr[0]
 		}
-		if err, field := FindField(value, paramKey, searchModelParamIndex, searchModelIndex, paramIndex); err == nil {
+		if err, field := FindField(value, paramKey, filterParamIndex, filterIndex, paramIndex); err == nil {
 			kind := field.Kind()
 
 			var v interface{}
@@ -71,25 +71,25 @@ func UrlToModel(searchModel interface{}, params url.Values, searchModelParamInde
 			log.Println(err)
 		}
 	}
-	return searchModel
+	return filter
 }
-func FindField(value reflect.Value, paramKey string, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) (error, reflect.Value) {
-	if index, ok := searchModelParamIndex[paramKey]; ok {
-		searchModelField := value.Field(searchModelIndex)
-		if searchModelField.Kind() == reflect.Ptr {
-			searchModelField = reflect.Indirect(searchModelField)
+func FindField(value reflect.Value, paramKey string, filterParamIndex map[string]int, filterIndex int, paramIndex map[string]int) (error, reflect.Value) {
+	if index, ok := filterParamIndex[paramKey]; ok {
+		filterField := value.Field(filterIndex)
+		if filterField.Kind() == reflect.Ptr {
+			filterField = reflect.Indirect(filterField)
 		}
-		return nil, searchModelField.Field(index)
+		return nil, filterField.Field(index)
 	} else if index, ok := paramIndex[paramKey]; ok {
 		return nil, value.Field(index)
 	}
 	return errors.New("can't find field " + paramKey), value
 }
-func BuildParamIndex(searchModelType reflect.Type) map[string]int {
+func BuildParamIndex(filterType reflect.Type) map[string]int {
 	params := map[string]int{}
-	numField := searchModelType.NumField()
+	numField := filterType.NumField()
 	for i := 0; i < numField; i++ {
-		field := searchModelType.Field(i)
+		field := filterType.Field(i)
 		fullJsonTag := field.Tag.Get("json")
 		tagDetails := strings.Split(fullJsonTag, ",")
 		if len(tagDetails) > 0 && len(tagDetails[0]) > 0 {
@@ -99,8 +99,8 @@ func BuildParamIndex(searchModelType reflect.Type) map[string]int {
 	return params
 }
 
-func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedSearchModelType bool, userIdName string, searchModelParamIndex map[string]int, searchModelIndex int, paramIndex map[string]int) (interface{}, int, error) {
-	var searchModel = CreateSearchModel(searchModelType, isExtendedSearchModelType)
+func BuildFilter(r *http.Request, filterType reflect.Type, isExtendedFilter bool, userIdName string, filterParamIndex map[string]int, filterIndex int, paramIndex map[string]int) (interface{}, int, error) {
+	var filter = CreateFilter(filterType, isExtendedFilter)
 	method := r.Method
 	x := 1
 	if method == http.MethodGet {
@@ -109,9 +109,9 @@ func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedS
 		if len(fs) == 0 {
 			x = -1
 		}
-		UrlToModel(searchModel, ps, searchModelParamIndex, searchModelIndex, paramIndex)
+		UrlToModel(filter, ps, filterParamIndex, filterIndex, paramIndex)
 	} else if method == http.MethodPost {
-		if err := json.NewDecoder(r.Body).Decode(&searchModel); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
 			return nil, x, err
 		}
 	}
@@ -125,8 +125,8 @@ func BuildSearchModel(r *http.Request, searchModelType reflect.Type, isExtendedS
 			}
 		}
 	}
-	SetUserId(searchModel, userId)
-	return searchModel, x, nil
+	SetUserId(filter, userId)
+	return filter, x, nil
 }
 func BuildResultMap(models interface{}, count int64, nextPageToken string, config SearchResultConfig) map[string]interface{} {
 	result := make(map[string]interface{})

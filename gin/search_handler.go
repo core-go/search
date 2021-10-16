@@ -11,32 +11,32 @@ import (
 )
 
 type SearchHandler struct {
-	search                    func(ctx context.Context, searchModel interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
-	modelType                 reflect.Type
-	searchModelType           reflect.Type
-	Error                     func(context.Context, string)
-	Config                    s.SearchResultConfig
-	quickSearch               bool
-	isExtendedSearchModelType bool
-	Log                       func(ctx context.Context, resource string, action string, success bool, desc string) error
-	Resource                  string
-	Action                    string
-	embedField                string
-	userId                    string
+	search           func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
+	modelType        reflect.Type
+	filterType       reflect.Type
+	Error            func(context.Context, string)
+	Config           s.SearchResultConfig
+	quickSearch      bool
+	isExtendedFilter bool
+	Log              func(ctx context.Context, resource string, action string, success bool, desc string) error
+	Resource         string
+	Action           string
+	embedField       string
+	userId           string
 
 	// search by GET
-	paramIndex            map[string]int
-	searchModelParamIndex map[string]int
-	searchModelIndex      int
+	paramIndex       map[string]int
+	filterParamIndex map[string]int
+	filterModelIndex int
 }
 
-func NewSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
-	return NewSearchHandlerWithQuickSearch(search, modelType, searchModelType, logError, writeLog, true, options...)
+func NewSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
+	return NewSearchHandlerWithQuickSearch(search, modelType, filterType, logError, writeLog, true, options...)
 }
-func NewJSONSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
-	return NewSearchHandlerWithQuickSearch(search, modelType, searchModelType, logError, writeLog, false, options...)
+func NewJSONSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
+	return NewSearchHandlerWithQuickSearch(search, modelType, filterType, logError, writeLog, false, options...)
 }
-func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
+func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action, user string
 	if len(options) >= 1 {
 		user = options[0]
@@ -54,15 +54,15 @@ func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, i
 	} else {
 		action = s.Search
 	}
-	return NewSearchHandlerWithConfig(search, modelType, searchModelType, logError, nil, writeLog, quickSearch, resource, action, user, "")
+	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, user, "")
 }
-func NewSearchHandlerWithUserId(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
-	return NewSearchHandlerWithUserIdAndQuickSearch(search, modelType, searchModelType, userId, logError, writeLog, true, options...)
+func NewSearchHandlerWithUserId(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
+	return NewSearchHandlerWithUserIdAndQuickSearch(search, modelType, filterType, userId, logError, writeLog, true, options...)
 }
-func NewJSONSearchHandlerWithUserId(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
-	return NewSearchHandlerWithUserIdAndQuickSearch(search, modelType, searchModelType, userId, logError, writeLog, false, options...)
+func NewJSONSearchHandlerWithUserId(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
+	return NewSearchHandlerWithUserIdAndQuickSearch(search, modelType, filterType, userId, logError, writeLog, false, options...)
 }
-func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
+func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action string
 	if len(options) >= 1 {
 		resource = options[0]
@@ -75,12 +75,12 @@ func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, inter
 	} else {
 		action = s.Search
 	}
-	return NewSearchHandlerWithConfig(search, modelType, searchModelType, logError, nil, writeLog, quickSearch, resource, action, userId, "")
+	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, userId, "")
 }
-func NewDefaultSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, resource string, logError func(context.Context, string), userId string, quickSearch bool, writeLog func(context.Context, string, string, bool, string) error) *SearchHandler {
-	return NewSearchHandlerWithConfig(search, modelType, searchModelType, logError, nil, writeLog, quickSearch, resource, s.Search, userId, "")
+func NewDefaultSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, resource string, logError func(context.Context, string), userId string, quickSearch bool, writeLog func(context.Context, string, string, bool, string) error) *SearchHandler {
+	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, s.Search, userId, "")
 }
-func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, searchModelType reflect.Type, logError func(context.Context, string), config *s.SearchResultConfig, writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
+func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), config *s.SearchResultConfig, writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
 	var c s.SearchResultConfig
 	if len(action) == 0 {
 		action = s.Search
@@ -92,35 +92,35 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 		c.Results = "results"
 		c.Total = "total"
 	}
-	isExtendedSearchModelType := s.IsExtendedFromSearchModel(searchModelType)
-	if isExtendedSearchModelType == false {
-		panic(errors.New(searchModelType.Name() + " isn't SearchModel struct nor extended from SearchModel struct!"))
+	isExtendedFilter := s.IsExtendedFromFilter(filterType)
+	if isExtendedFilter == false {
+		panic(errors.New(filterType.Name() + " isn't Filter struct nor extended from Filter struct!"))
 	}
 
-	paramIndex := s.BuildParamIndex(searchModelType)
-	searchModelParamIndex := s.BuildParamIndex(reflect.TypeOf(s.SearchModel{}))
-	searchModelIndex := s.FindSearchModelIndex(searchModelType)
+	paramIndex := s.BuildParamIndex(filterType)
+	filterParamIndex := s.BuildParamIndex(reflect.TypeOf(s.Filter{}))
+	filterIndex := s.FindFilterIndex(filterType)
 
-	return &SearchHandler{search: search, modelType: modelType, searchModelType: searchModelType, Config: c, Log: writeLog, quickSearch: quickSearch, isExtendedSearchModelType: isExtendedSearchModelType, Resource: resource, Action: action, paramIndex: paramIndex, searchModelIndex: searchModelIndex, searchModelParamIndex: searchModelParamIndex, userId: userId, embedField: embedField, Error: logError}
+	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, isExtendedFilter: isExtendedFilter, Resource: resource, Action: action, paramIndex: paramIndex, filterModelIndex: filterIndex, filterParamIndex: filterParamIndex, userId: userId, embedField: embedField, Error: logError}
 }
 
 const internalServerError = "Internal Server Error"
 
 func (c *SearchHandler) Search(ctx *gin.Context) {
 	r := ctx.Request
-	searchModel, x, er0 := s.BuildSearchModel(r, c.searchModelType, c.isExtendedSearchModelType, c.userId, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
+	filter, x, er0 := s.BuildFilter(r, c.filterType, c.isExtendedFilter, c.userId, c.filterParamIndex, c.filterModelIndex, c.paramIndex)
 	if er0 != nil {
-		ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode search model: "+er0.Error())
+		ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode filter: "+er0.Error())
 		return
 	}
-	limit, offset, fs, _, _, er1 := s.Extract(searchModel)
+	limit, offset, fs, _, _, er1 := s.Extract(filter)
 	if er1 != nil {
 		respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
 		return
 	}
 	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	count, nextPageToken, er2 := c.search(r.Context(), searchModel, models, limit, offset)
+	count, nextPageToken, er2 := c.search(r.Context(), filter, models, limit, offset)
 	if er2 != nil {
 		respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
 		return

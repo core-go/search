@@ -32,7 +32,7 @@ func NewExtractor(options ...string) *Extractor {
 }
 
 func (e *Extractor) Extract(m interface{}) (int64, int64, int64, error) {
-	if sModel, ok0 := m.(*SearchModel); ok0 {
+	if sModel, ok0 := m.(*Filter); ok0 {
 		return sModel.Page, sModel.Limit, sModel.FirstLimit, nil
 	}
 	var page, limit, firstLimit int64
@@ -44,7 +44,7 @@ func (e *Extractor) Extract(m interface{}) (int64, int64, int64, error) {
 	numField := t.NumField()
 	// numField := value.NumField()
 	for i := 0; i < numField; i++ {
-		if sModel1, ok1 := value.Field(i).Interface().(*SearchModel); ok1 {
+		if sModel1, ok1 := value.Field(i).Interface().(*Filter); ok1 {
 			return sModel1.Page, sModel1.Limit, sModel1.FirstLimit, nil
 		} else {
 			n := t.Field(i).Name
@@ -70,7 +70,7 @@ func (e *Extractor) Extract(m interface{}) (int64, int64, int64, error) {
 }
 
 func Extract(m interface{}) (int64, int64, []string, string, string, error) {
-	if sModel, ok := m.(*SearchModel); ok {
+	if sModel, ok := m.(*Filter); ok {
 		var limit, offset int64
 		if sModel.FirstLimit > 0 {
 			if sModel.Page == 1 {
@@ -89,7 +89,7 @@ func Extract(m interface{}) (int64, int64, []string, string, string, error) {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
+			if sModel1, ok := value.Field(i).Interface().(*Filter); ok {
 				var limit1, offset1 int64
 				if sModel1.FirstLimit > 0 {
 					if sModel1.Page == 1 {
@@ -136,7 +136,7 @@ func GetRefId(m interface{}) string {
 func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string) {
 	var fields []string
 	var sort, refId string
-	if sModel, ok := m.(*SearchModel); ok {
+	if sModel, ok := m.(*Filter); ok {
 		return sModel.Fields, sModel.Sort, sModel.RefId
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
@@ -156,7 +156,7 @@ func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string) {
 					refId = s
 				}
 			}
-			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
+			if sModel1, ok := value.Field(i).Interface().(*Filter); ok {
 				return sModel1.Fields, sModel1.Sort, sModel1.RefId
 			}
 		}

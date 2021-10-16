@@ -2,7 +2,7 @@ package search
 
 import "reflect"
 
-type SearchModel struct {
+type Filter struct {
 	PageIndex     int64 `mapstructure:"page_index" json:"pageIndex,omitempty" gorm:"column:pageindex" bson:"pageIndex,omitempty" dynamodbav:"pageIndex,omitempty" firestore:"pageIndex,omitempty"`
 	PageSize      int64 `mapstructure:"page_size" json:"pageSize,omitempty" gorm:"column:pagesize" bson:"pageSize,omitempty" dynamodbav:"pageSize,omitempty" firestore:"pageSize,omitempty"`
 	FirstPageSize int64 `mapstructure:"first_page_size" json:"firstPageSize,omitempty" gorm:"column:firstpagesize" bson:"firstPageSize,omitempty" dynamodbav:"firstPageSize,omitempty" firestore:"firstPageSize,omitempty"`
@@ -18,29 +18,29 @@ type SearchModel struct {
 	RefId         string   `mapstructure:"refid" json:"refId,omitempty" gorm:"column:refid" bson:"refId,omitempty" dynamodbav:"refId,omitempty" firestore:"refId,omitempty"`
 }
 
-func IsExtendedFromSearchModel(searchModelType reflect.Type) bool {
-	var searchModel = reflect.New(searchModelType).Interface()
-	if _, ok := searchModel.(*SearchModel); ok {
+func IsExtendedFromFilter(filterType reflect.Type) bool {
+	var filter = reflect.New(filterType).Interface()
+	if _, ok := filter.(*Filter); ok {
 		return false
 	} else {
-		value := reflect.Indirect(reflect.ValueOf(searchModel))
+		value := reflect.Indirect(reflect.ValueOf(filter))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
-			if _, ok := value.Field(i).Interface().(*SearchModel); ok {
+			if _, ok := value.Field(i).Interface().(*Filter); ok {
 				return true
 			}
 		}
 	}
 	return false
 }
-func GetSearchModel(m interface{}) *SearchModel {
-	if sModel, ok := m.(*SearchModel); ok {
+func GetFilter(m interface{}) *Filter {
+	if sModel, ok := m.(*Filter); ok {
 		return sModel
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*SearchModel); ok {
+			if sModel1, ok := value.Field(i).Interface().(*Filter); ok {
 				return sModel1
 			}
 		}

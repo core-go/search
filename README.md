@@ -1,5 +1,5 @@
 # Search Service for Golang
-- Search Model
+- Filter
 - Search Result With Config
 - Search Service
 - Search Handler

@@ -8,19 +8,19 @@ import (
 const internalServerError = "Internal Server Error"
 
 func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
-	searchModel, x, er0 := BuildSearchModel(r, c.searchModelType, c.isExtendedSearchModelType, c.userId, c.searchModelParamIndex, c.searchModelIndex, c.paramIndex)
+	filter, x, er0 := BuildFilter(r, c.filterType, c.isExtendedFilter, c.userId, c.filterParamIndex, c.filterIndex, c.paramIndex)
 	if er0 != nil {
-		http.Error(w, "cannot decode search model: "+er0.Error(), http.StatusBadRequest)
+		http.Error(w, "cannot decode filter: "+er0.Error(), http.StatusBadRequest)
 		return
 	}
-	limit, offset, fs, _, _, er1 := Extract(searchModel)
+	limit, offset, fs, _, _, er1 := Extract(filter)
 	if er1 != nil {
 		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
 		return
 	}
 	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	count, nextPageToken, er2 := c.search(r.Context(), searchModel, models, limit, offset)
+	count, nextPageToken, er2 := c.search(r.Context(), filter, models, limit, offset)
 	if er2 != nil {
 		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
 		return
