@@ -1,7 +1,20 @@
-package search
+package handler
 
-import "reflect"
+import (
+	. "github.com/core-go/search"
+	"reflect"
+)
 
+func BuildResultMap(models interface{}, count int64, nextPageToken string, config SearchResultConfig) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	result[config.Total] = count
+	result[config.Results] = models
+	if len(nextPageToken) > 0 {
+		result[config.NextPageToken] = nextPageToken
+	}
+	return result
+}
 func SetUserId(sm interface{}, currentUserId string) {
 	if s, ok := sm.(*Filter); ok { // Is Filter struct
 		RepairFilter(s, currentUserId)

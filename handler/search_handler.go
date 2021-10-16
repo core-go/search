@@ -1,9 +1,11 @@
-package search
+package handler
 
 import (
 	"context"
 	"errors"
 	"reflect"
+
+	. "github.com/core-go/search"
 )
 
 type SearchHandler struct {

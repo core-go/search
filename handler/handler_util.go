@@ -1,4 +1,4 @@
-package search
+package handler
 
 import (
 	"encoding/json"
@@ -127,16 +127,6 @@ func BuildFilter(r *http.Request, filterType reflect.Type, isExtendedFilter bool
 	}
 	SetUserId(filter, userId)
 	return filter, x, nil
-}
-func BuildResultMap(models interface{}, count int64, nextPageToken string, config SearchResultConfig) map[string]interface{} {
-	result := make(map[string]interface{})
-
-	result[config.Total] = count
-	result[config.Results] = models
-	if len(nextPageToken) > 0 {
-		result[config.NextPageToken] = nextPageToken
-	}
-	return result
 }
 func ResultToCsv(fields []string, models interface{}, count int64, nextPageToken string, embedField string) (string, bool) {
 	if len(fields) > 0 {
