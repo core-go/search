@@ -45,18 +45,18 @@ func NewJSONSearchHandler(search func(context.Context, interface{}, interface{},
 }
 func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action, user string
-	if len(options) >= 1 {
+	if len(options) > 0 && len(options[0]) > 0 {
 		user = options[0]
 	} else {
 		user = UserId
 	}
-	if len(options) >= 2 {
+	if len(options) > 1 && len(options[1]) > 0 {
 		resource = options[1]
 	} else {
 		name := modelType.Name()
 		resource = BuildResourceName(name)
 	}
-	if len(options) >= 3 {
+	if len(options) > 2 && len(options[2]) > 0 {
 		action = options[2]
 	} else {
 		action = Search
@@ -71,13 +71,13 @@ func NewJSONSearchHandlerWithUserId(search func(context.Context, interface{}, in
 }
 func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action string
-	if len(options) >= 1 {
+	if len(options) > 0 && len(options[0]) > 0 {
 		resource = options[0]
 	} else {
 		name := modelType.Name()
 		resource = BuildResourceName(name)
 	}
-	if len(options) >= 2 {
+	if len(options) > 1 && len(options[1]) > 0 {
 		action = options[1]
 	} else {
 		action = Search

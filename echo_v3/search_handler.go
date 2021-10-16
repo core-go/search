@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	s "github.com/core-go/search"
+	h "github.com/core-go/search/handler"
 	"github.com/labstack/echo"
 	"net/http"
 	"reflect"
-	"strings"
 )
-
 type SearchHandler struct {
 	search           func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
 	modelType        reflect.Type
@@ -38,21 +37,21 @@ func NewJSONSearchHandler(search func(context.Context, interface{}, interface{},
 }
 func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action, user string
-	if len(options) >= 1 {
+	if len(options) > 0 && len(options[0]) > 0 {
 		user = options[0]
 	} else {
-		user = s.UserId
+		user = h.UserId
 	}
-	if len(options) >= 2 {
+	if len(options) > 1 && len(options[1]) > 0 {
 		resource = options[1]
 	} else {
 		name := modelType.Name()
-		resource = buildResourceName(name)
+		resource = h.BuildResourceName(name)
 	}
-	if len(options) >= 3 {
+	if len(options) > 2 && len(options[2]) > 0 {
 		action = options[2]
 	} else {
-		action = s.Search
+		action = h.Search
 	}
 	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, user, "")
 }
@@ -64,26 +63,26 @@ func NewJSONSearchHandlerWithUserId(search func(context.Context, interface{}, in
 }
 func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, userId string, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, options ...string) *SearchHandler {
 	var resource, action string
-	if len(options) >= 1 {
+	if len(options) > 0 && len(options[0]) > 0 {
 		resource = options[0]
 	} else {
 		name := modelType.Name()
-		resource = buildResourceName(name)
+		resource = h.BuildResourceName(name)
 	}
-	if len(options) >= 2 {
+	if len(options) > 1 && len(options[1]) > 0 {
 		action = options[1]
 	} else {
-		action = s.Search
+		action = h.Search
 	}
 	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, userId, "")
 }
 func NewDefaultSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, resource string, logError func(context.Context, string), userId string, quickSearch bool, writeLog func(context.Context, string, string, bool, string) error) *SearchHandler {
-	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, s.Search, userId, "")
+	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, h.Search, userId, "")
 }
 func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), config *s.SearchResultConfig, writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
 	var c s.SearchResultConfig
 	if len(action) == 0 {
-		action = s.Search
+		action = h.Search
 	}
 	if config != nil {
 		c = *config
@@ -97,9 +96,9 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 		panic(errors.New(filterType.Name() + " isn't Filter struct nor extended from Filter struct!"))
 	}
 
-	paramIndex := s.BuildParamIndex(filterType)
-	filterParamIndex := s.BuildParamIndex(reflect.TypeOf(s.Filter{}))
-	filterIndex := s.FindFilterIndex(filterType)
+	paramIndex := h.BuildParamIndex(filterType)
+	filterParamIndex := h.BuildParamIndex(reflect.TypeOf(s.Filter{}))
+	filterIndex := h.FindFilterIndex(filterType)
 
 	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, isExtendedFilter: isExtendedFilter, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, filterParamIndex: filterParamIndex, userId: userId, embedField: embedField, Error: logError}
 }
@@ -108,11 +107,11 @@ const internalServerError = "Internal Server Error"
 
 func (c *SearchHandler) Search(ctx echo.Context) error {
 	r := ctx.Request()
-	filter, x, er0 := s.BuildFilter(r, c.filterType, c.isExtendedFilter, c.userId, c.filterParamIndex, c.filterIndex, c.paramIndex)
+	filter, x, er0 := h.BuildFilter(r, c.filterType, c.isExtendedFilter, c.userId, c.filterParamIndex, c.filterIndex, c.paramIndex)
 	if er0 != nil {
 		return ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode filter: "+er0.Error())
 	}
-	limit, offset, fs, _, _, er1 := s.Extract(filter)
+	limit, offset, fs, _, _, er1 := h.Extract(filter)
 	if er1 != nil {
 		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
 	}
@@ -123,11 +122,11 @@ func (c *SearchHandler) Search(ctx echo.Context) error {
 		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
 	}
 
-	result := s.BuildResultMap(models, count, nextPageToken, c.Config)
+	result := h.BuildResultMap(models, count, nextPageToken, c.Config)
 	if x == -1 {
 		return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
 	} else if c.quickSearch && x == 1 {
-		result1, ok := s.ResultToCsv(fs, models, count, nextPageToken, c.embedField)
+		result1, ok := h.ResultToCsv(fs, models, count, nextPageToken, c.embedField)
 		if ok {
 			return succeed(ctx, http.StatusOK, result1, c.Log, c.Resource, c.Action)
 		} else {
@@ -136,22 +135,6 @@ func (c *SearchHandler) Search(ctx echo.Context) error {
 	} else {
 		return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
 	}
-}
-
-func buildResourceName(s string) string {
-	s2 := strings.ToLower(s)
-	s3 := ""
-	for i := range s {
-		if s2[i] != s[i] {
-			s3 += "-" + string(s2[i])
-		} else {
-			s3 += string(s2[i])
-		}
-	}
-	if string(s3[0]) == "-" || string(s3[0]) == "_" {
-		return s3[1:]
-	}
-	return s3
 }
 func respondError(ctx echo.Context, code int, result interface{}, logError func(context.Context, string), resource string, action string, err error, writeLog func(ctx context.Context, resource string, action string, success bool, desc string) error) error {
 	if logError != nil {
