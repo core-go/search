@@ -1,11 +1,13 @@
-package handler
+package search
 
 import (
 	"context"
+	"net/http"
 	"reflect"
-
-	. "github.com/core-go/search"
 )
+type Search interface {
+	Search(w http.ResponseWriter, r *http.Request)
+}
 
 type SearchHandler struct {
 	search      func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
@@ -40,7 +42,7 @@ const (
 	UserId             = "userId"
 	Uid                = "uid"
 	Username           = "username"
-	Search             = "search"
+	sSearch            = "search"
 )
 
 func NewSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
@@ -65,7 +67,7 @@ func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, i
 	if len(options) > 2 && len(options[2]) > 0 {
 		action = options[2]
 	} else {
-		action = Search
+		action = sSearch
 	}
 	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, user, "")
 }
@@ -86,17 +88,17 @@ func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, inter
 	if len(options) > 1 && len(options[1]) > 0 {
 		action = options[1]
 	} else {
-		action = Search
+		action = sSearch
 	}
 	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, userId, "")
 }
 func NewDefaultSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, resource string, logError func(context.Context, string), userId string, quickSearch bool, writeLog func(context.Context, string, string, bool, string) error) *SearchHandler {
-	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, Search, userId, "")
+	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, sSearch, userId, "")
 }
 func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), config *SearchResultConfig, writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
 	var c SearchResultConfig
 	if len(action) == 0 {
-		action = Search
+		action = sSearch
 	}
 	if config != nil {
 		c = *config

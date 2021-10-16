@@ -1,9 +1,6 @@
-package handler
+package search
 
-import (
-	. "github.com/core-go/search"
-	"reflect"
-)
+import "reflect"
 
 func BuildResultMap(models interface{}, count int64, nextPageToken string, config SearchResultConfig) map[string]interface{} {
 	result := make(map[string]interface{})

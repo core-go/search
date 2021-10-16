@@ -3,11 +3,12 @@ package echo
 import (
 	"context"
 	s "github.com/core-go/search"
-	h "github.com/core-go/search/handler"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"reflect"
 )
+
+const sSearch = "search"
 
 type SearchHandler struct {
 	search      func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
@@ -37,18 +38,18 @@ func NewSearchHandlerWithQuickSearch(search func(context.Context, interface{}, i
 	if len(options) > 0 && len(options[0]) > 0 {
 		user = options[0]
 	} else {
-		user = h.UserId
+		user = s.UserId
 	}
 	if len(options) > 1 && len(options[1]) > 0 {
 		resource = options[1]
 	} else {
 		name := modelType.Name()
-		resource = h.BuildResourceName(name)
+		resource = s.BuildResourceName(name)
 	}
 	if len(options) > 2 && len(options[2]) > 0 {
 		action = options[2]
 	} else {
-		action = h.Search
+		action = sSearch
 	}
 	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, user, "")
 }
@@ -64,22 +65,22 @@ func NewSearchHandlerWithUserIdAndQuickSearch(search func(context.Context, inter
 		resource = options[0]
 	} else {
 		name := modelType.Name()
-		resource = h.BuildResourceName(name)
+		resource = s.BuildResourceName(name)
 	}
 	if len(options) > 1 && len(options[1]) > 0 {
 		action = options[1]
 	} else {
-		action = h.Search
+		action = sSearch
 	}
 	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, action, userId, "")
 }
 func NewDefaultSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, resource string, logError func(context.Context, string), userId string, quickSearch bool, writeLog func(context.Context, string, string, bool, string) error) *SearchHandler {
-	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, h.Search, userId, "")
+	return NewSearchHandlerWithConfig(search, modelType, filterType, logError, nil, writeLog, quickSearch, resource, sSearch, userId, "")
 }
 func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), config *s.SearchResultConfig, writeLog func(context.Context, string, string, bool, string) error, quickSearch bool, resource string, action string, userId string, embedField string) *SearchHandler {
 	var c s.SearchResultConfig
 	if len(action) == 0 {
-		action = h.Search
+		action = sSearch
 	}
 	if config != nil {
 		c = *config
@@ -88,8 +89,8 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 		c.Results = "results"
 		c.Total = "total"
 	}
-	paramIndex := h.BuildParamIndex(filterType)
-	filterIndex := h.FindFilterIndex(filterType)
+	paramIndex := s.BuildParamIndex(filterType)
+	filterIndex := s.FindFilterIndex(filterType)
 
 	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, Error: logError}
 }
@@ -98,11 +99,11 @@ const internalServerError = "Internal Server Error"
 
 func (c *SearchHandler) Search(ctx echo.Context) error {
 	r := ctx.Request()
-	filter, x, er0 := h.BuildFilter(r, c.filterType, c.paramIndex, c.userId, c.filterIndex)
+	filter, x, er0 := s.BuildFilter(r, c.filterType, c.paramIndex, c.userId, c.filterIndex)
 	if er0 != nil {
 		return ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode filter: "+er0.Error())
 	}
-	limit, offset, fs, _, _, er1 := h.Extract(filter)
+	limit, offset, fs, _, _, er1 := s.Extract(filter)
 	if er1 != nil {
 		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er1, c.Log)
 	}
@@ -113,11 +114,11 @@ func (c *SearchHandler) Search(ctx echo.Context) error {
 		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er2, c.Log)
 	}
 
-	result := h.BuildResultMap(models, count, nextPageToken, c.Config)
+	result := s.BuildResultMap(models, count, nextPageToken, c.Config)
 	if x == -1 {
 		return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
 	} else if c.quickSearch && x == 1 {
-		result1, ok := h.ResultToCsv(fs, models, count, nextPageToken, c.embedField)
+		result1, ok := s.ResultToCsv(fs, models, count, nextPageToken, c.embedField)
 		if ok {
 			return succeed(ctx, http.StatusOK, result1, c.Log, c.Resource, c.Action)
 		} else {

@@ -1,10 +1,8 @@
-package handler
+package search
 
 import (
 	"errors"
 	"reflect"
-
-	. "github.com/core-go/search"
 )
 
 type Extractor struct {
