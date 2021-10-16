@@ -26,18 +26,17 @@ func BuildResourceName(s string) string {
 	}
 	return s3
 }
-func UrlToModel(filter interface{}, params url.Values, filterParamIndex map[string]int, filterIndex int, paramIndex map[string]int) interface{} {
+func UrlToModel(filter interface{}, params url.Values, paramIndex map[string]int, options...int) interface{} {
 	value := reflect.Indirect(reflect.ValueOf(filter))
 	if value.Kind() == reflect.Ptr {
 		value = reflect.Indirect(value)
 	}
-
 	for paramKey, valueArr := range params {
 		paramValue := ""
 		if len(valueArr) > 0 {
 			paramValue = valueArr[0]
 		}
-		if err, field := FindField(value, paramKey, filterParamIndex, filterIndex, paramIndex); err == nil {
+		if field, err := FindField(value, paramKey, paramIndex, options...); err == nil {
 			kind := field.Kind()
 
 			var v interface{}
@@ -73,17 +72,25 @@ func UrlToModel(filter interface{}, params url.Values, filterParamIndex map[stri
 	}
 	return filter
 }
-func FindField(value reflect.Value, paramKey string, filterParamIndex map[string]int, filterIndex int, paramIndex map[string]int) (error, reflect.Value) {
-	if index, ok := filterParamIndex[paramKey]; ok {
-		filterField := value.Field(filterIndex)
-		if filterField.Kind() == reflect.Ptr {
-			filterField = reflect.Indirect(filterField)
-		}
-		return nil, filterField.Field(index)
-	} else if index, ok := paramIndex[paramKey]; ok {
-		return nil, value.Field(index)
+func FindField(value reflect.Value, paramKey string, paramIndex map[string]int, options...int) (reflect.Value, error) {
+	if index, ok := paramIndex[paramKey]; ok {
+		return value.Field(index), nil
 	}
-	return errors.New("can't find field " + paramKey), value
+	filterIndex := -1
+	if len(options) > 0 && options[0] >= 0 {
+		filterIndex = options[0]
+	}
+	if filterIndex >= 0 {
+		filterParamIndex := GetFilterParamIndex()
+		if index, ok := filterParamIndex[paramKey]; ok {
+			filterField := value.Field(filterIndex)
+			if filterField.Kind() == reflect.Ptr {
+				filterField = reflect.Indirect(filterField)
+			}
+			return filterField.Field(index), nil
+		}
+	}
+	return value, errors.New("can't find field " + paramKey)
 }
 func BuildParamIndex(filterType reflect.Type) map[string]int {
 	params := map[string]int{}
@@ -99,8 +106,8 @@ func BuildParamIndex(filterType reflect.Type) map[string]int {
 	return params
 }
 
-func BuildFilter(r *http.Request, filterType reflect.Type, isExtendedFilter bool, userIdName string, filterParamIndex map[string]int, filterIndex int, paramIndex map[string]int) (interface{}, int, error) {
-	var filter = CreateFilter(filterType, isExtendedFilter)
+func BuildFilter(r *http.Request, filterType reflect.Type, paramIndex map[string]int, userIdName string, options...int) (interface{}, int, error) {
+	var filter = CreateFilter(filterType, options...)
 	method := r.Method
 	x := 1
 	if method == http.MethodGet {
@@ -109,7 +116,7 @@ func BuildFilter(r *http.Request, filterType reflect.Type, isExtendedFilter bool
 		if len(fs) == 0 {
 			x = -1
 		}
-		UrlToModel(filter, ps, filterParamIndex, filterIndex, paramIndex)
+		UrlToModel(filter, ps, paramIndex, options...)
 	} else if method == http.MethodPost {
 		if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
 			return nil, x, err

@@ -8,21 +8,21 @@ import (
 const internalServerError = "Internal Server Error"
 
 func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
-	filter, x, er0 := BuildFilter(r, c.filterType, c.isExtendedFilter, c.userId, c.filterParamIndex, c.filterIndex, c.paramIndex)
+	filter, x, er0 := BuildFilter(r, c.filterType, c.paramIndex, c.userId, c.filterIndex)
 	if er0 != nil {
 		http.Error(w, "cannot decode filter: "+er0.Error(), http.StatusBadRequest)
 		return
 	}
 	limit, offset, fs, _, _, er1 := Extract(filter)
 	if er1 != nil {
-		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
+		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er1, c.Log)
 		return
 	}
 	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
 	models := reflect.New(modelsType).Interface()
 	count, nextPageToken, er2 := c.search(r.Context(), filter, models, limit, offset)
 	if er2 != nil {
-		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
+		respondError(w, r, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er2, c.Log)
 		return
 	}
 

@@ -18,21 +18,6 @@ type Filter struct {
 	RefId         string   `mapstructure:"refid" json:"refId,omitempty" gorm:"column:refid" bson:"refId,omitempty" dynamodbav:"refId,omitempty" firestore:"refId,omitempty"`
 }
 
-func IsExtendedFromFilter(filterType reflect.Type) bool {
-	var filter = reflect.New(filterType).Interface()
-	if _, ok := filter.(*Filter); ok {
-		return false
-	} else {
-		value := reflect.Indirect(reflect.ValueOf(filter))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			if _, ok := value.Field(i).Interface().(*Filter); ok {
-				return true
-			}
-		}
-	}
-	return false
-}
 func GetFilter(m interface{}) *Filter {
 	if sModel, ok := m.(*Filter); ok {
 		return sModel

@@ -2,31 +2,28 @@ package echo
 
 import (
 	"context"
-	"errors"
 	s "github.com/core-go/search"
 	h "github.com/core-go/search/handler"
 	"github.com/labstack/echo"
 	"net/http"
 	"reflect"
 )
-type SearchHandler struct {
-	search           func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
-	modelType        reflect.Type
-	filterType       reflect.Type
-	Error            func(context.Context, string)
-	Config           s.SearchResultConfig
-	quickSearch      bool
-	isExtendedFilter bool
-	Log              func(ctx context.Context, resource string, action string, success bool, desc string) error
-	Resource         string
-	Action           string
-	embedField       string
-	userId           string
 
+type SearchHandler struct {
+	search      func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
+	modelType   reflect.Type
+	filterType  reflect.Type
+	Error       func(context.Context, string)
+	Config      s.SearchResultConfig
+	quickSearch bool
+	Log         func(ctx context.Context, resource string, action string, success bool, desc string) error
+	Resource    string
+	Action      string
+	embedField  string
+	userId      string
 	// search by GET
-	paramIndex       map[string]int
-	filterParamIndex map[string]int
-	filterIndex      int
+	paramIndex  map[string]int
+	filterIndex int
 }
 
 func NewSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
@@ -91,35 +88,29 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 		c.Results = "results"
 		c.Total = "total"
 	}
-	isExtendedFilter := s.IsExtendedFromFilter(filterType)
-	if isExtendedFilter == false {
-		panic(errors.New(filterType.Name() + " isn't Filter struct nor extended from Filter struct!"))
-	}
-
 	paramIndex := h.BuildParamIndex(filterType)
-	filterParamIndex := h.BuildParamIndex(reflect.TypeOf(s.Filter{}))
 	filterIndex := h.FindFilterIndex(filterType)
 
-	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, isExtendedFilter: isExtendedFilter, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, filterParamIndex: filterParamIndex, userId: userId, embedField: embedField, Error: logError}
+	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, Error: logError}
 }
 
 const internalServerError = "Internal Server Error"
 
 func (c *SearchHandler) Search(ctx echo.Context) error {
 	r := ctx.Request()
-	filter, x, er0 := h.BuildFilter(r, c.filterType, c.isExtendedFilter, c.userId, c.filterParamIndex, c.filterIndex, c.paramIndex)
+	filter, x, er0 := h.BuildFilter(r, c.filterType, c.paramIndex, c.userId, c.filterIndex)
 	if er0 != nil {
 		return ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode filter: "+er0.Error())
 	}
 	limit, offset, fs, _, _, er1 := h.Extract(filter)
 	if er1 != nil {
-		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er1, c.Log)
+		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er1, c.Log)
 	}
 	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
 	models := reflect.New(modelsType).Interface()
 	count, nextPageToken, er2 := c.search(r.Context(), filter, models, limit, offset)
 	if er2 != nil {
-		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, "search", er2, c.Log)
+		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er2, c.Log)
 	}
 
 	result := h.BuildResultMap(models, count, nextPageToken, c.Config)

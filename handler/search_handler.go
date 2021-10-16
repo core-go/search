@@ -2,30 +2,36 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
 	. "github.com/core-go/search"
 )
 
 type SearchHandler struct {
-	search           func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
-	modelType        reflect.Type
-	filterType       reflect.Type
-	Error            func(context.Context, string)
-	Config           SearchResultConfig
-	quickSearch      bool
-	isExtendedFilter bool
-	Log              func(ctx context.Context, resource string, action string, success bool, desc string) error
-	Resource         string
-	Action           string
-	embedField       string
-	userId           string
-
+	search      func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
+	modelType   reflect.Type
+	filterType  reflect.Type
+	Error       func(context.Context, string)
+	Config      SearchResultConfig
+	quickSearch bool
+	Log         func(ctx context.Context, resource string, action string, success bool, desc string) error
+	Resource    string
+	Action      string
+	embedField  string
+	userId      string
 	// search by GET
-	paramIndex       map[string]int
-	filterParamIndex map[string]int
-	filterIndex      int
+	paramIndex  map[string]int
+	filterIndex int
+}
+
+var filterParamIndex map[string]int
+
+func GetFilterParamIndex() map[string]int {
+	if filterParamIndex == nil || len(filterParamIndex) == 0 {
+		f := BuildParamIndex(reflect.TypeOf(Filter{}))
+		filterParamIndex = f
+	}
+	return filterParamIndex
 }
 
 const (
@@ -100,14 +106,9 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 		c.Total = "total"
 		c.NextPageToken = "nextPageToken"
 	}
-	isExtendedFilter := IsExtendedFromFilter(filterType)
-	if isExtendedFilter == false {
-		panic(errors.New(filterType.Name() + " isn't Filter struct nor extended from Filter struct!"))
-	}
 
 	paramIndex := BuildParamIndex(filterType)
-	filterParamIndex := BuildParamIndex(reflect.TypeOf(Filter{}))
 	filterIndex := FindFilterIndex(filterType)
 
-	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, isExtendedFilter: isExtendedFilter, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, filterParamIndex: filterParamIndex, userId: userId, embedField: embedField, Error: logError}
+	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, Error: logError}
 }

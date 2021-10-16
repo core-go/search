@@ -30,17 +30,20 @@ func SetUserId(sm interface{}, currentUserId string) {
 		}
 	}
 }
-func CreateFilter(filterType reflect.Type, isExtendedFilter bool) interface{} {
+func CreateFilter(filterType reflect.Type, options...int) interface{} {
+	filterIndex := -1
+	if len(options) > 0 && options[0] >= 0 {
+		filterIndex = options[0]
+	}
 	var filter = reflect.New(filterType).Interface()
-	if isExtendedFilter {
+	if filterIndex >= 0 {
 		value := reflect.Indirect(reflect.ValueOf(filter))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			// Find Filter field of extended struct
-			if _, ok := value.Field(i).Interface().(*Filter); ok {
-				// Init Filter to avoid nil value
-				value.Field(i).Set(reflect.ValueOf(&Filter{}))
-				break
+		if filterIndex < value.NumField() {
+			f := value.Field(filterIndex)
+			if _, ok := f.Interface().(*Filter); ok {
+				f.Set(reflect.ValueOf(&Filter{}))
+			} else if _, ok := f.Interface().(Filter); ok {
+				f.Set(reflect.ValueOf(Filter{}))
 			}
 		}
 	}
@@ -49,8 +52,9 @@ func CreateFilter(filterType reflect.Type, isExtendedFilter bool) interface{} {
 
 func FindFilterIndex(filterType reflect.Type) int {
 	numField := filterType.NumField()
+	t := reflect.TypeOf(&Filter{})
 	for i := 0; i < numField; i++ {
-		if filterType.Field(i).Type == reflect.TypeOf(&Filter{}) {
+		if filterType.Field(i).Type == t {
 			return i
 		}
 	}
@@ -58,8 +62,10 @@ func FindFilterIndex(filterType reflect.Type) int {
 }
 
 // Check valid and change value of pagination to correct
-func RepairFilter(filter *Filter, currentUserId string) {
-	filter.CurrentUserId = currentUserId
+func RepairFilter(filter *Filter, options...string) {
+	if len(options) > 0 {
+		filter.CurrentUserId = options[0]
+	}
 
 	if filter.PageIndex != 0 && filter.Page == 0 {
 		filter.Page = filter.PageIndex
