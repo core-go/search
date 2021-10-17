@@ -2,12 +2,8 @@ package search
 
 import (
 	"context"
-	"net/http"
 	"reflect"
 )
-type Search interface {
-	Search(w http.ResponseWriter, r *http.Request)
-}
 
 type SearchHandler struct {
 	search      func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
