@@ -6,17 +6,17 @@ import (
 )
 
 type SearchHandler struct {
-	search      func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
-	modelType   reflect.Type
-	filterType  reflect.Type
-	Error       func(context.Context, string)
-	Config      SearchResultConfig
-	quickSearch bool
-	Log         func(ctx context.Context, resource string, action string, success bool, desc string) error
-	Resource    string
-	Action      string
-	embedField  string
-	userId      string
+	search       func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
+	modelType    reflect.Type
+	filterType   reflect.Type
+	LogError     func(context.Context, string)
+	Config       SearchResultConfig
+	CSV          bool
+	WriteLog     func(ctx context.Context, resource string, action string, success bool, desc string) error
+	ResourceName string
+	Activity     string
+	embedField   string
+	userId       string
 	// search by GET
 	paramIndex  map[string]int
 	filterIndex int
@@ -108,5 +108,5 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 	paramIndex := BuildParamIndex(filterType)
 	filterIndex := FindFilterIndex(filterType)
 
-	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, Error: logError}
+	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, WriteLog: writeLog, CSV: quickSearch, ResourceName: resource, Activity: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, LogError: logError}
 }

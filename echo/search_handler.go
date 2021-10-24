@@ -11,17 +11,17 @@ import (
 const sSearch = "search"
 
 type SearchHandler struct {
-	search      func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
-	modelType   reflect.Type
-	filterType  reflect.Type
-	Error       func(context.Context, string)
-	Config      s.SearchResultConfig
-	quickSearch bool
-	Log         func(ctx context.Context, resource string, action string, success bool, desc string) error
-	Resource    string
-	Action      string
-	embedField  string
-	userId      string
+	search       func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
+	modelType    reflect.Type
+	filterType   reflect.Type
+	LogError     func(context.Context, string)
+	Config       s.SearchResultConfig
+	CSV          bool
+	Log          func(ctx context.Context, resource string, action string, success bool, desc string) error
+	ResourceName string
+	Activity     string
+	embedField   string
+	userId       string
 	// search by GET
 	paramIndex  map[string]int
 	filterIndex int
@@ -92,7 +92,7 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 	paramIndex := s.BuildParamIndex(filterType)
 	filterIndex := s.FindFilterIndex(filterType)
 
-	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, quickSearch: quickSearch, Resource: resource, Action: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, Error: logError}
+	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, CSV: quickSearch, ResourceName: resource, Activity: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, LogError: logError}
 }
 
 const internalServerError = "Internal Server Error"
@@ -105,27 +105,27 @@ func (c *SearchHandler) Search(ctx echo.Context) error {
 	}
 	limit, offset, fs, _, _, er1 := s.Extract(filter)
 	if er1 != nil {
-		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er1, c.Log)
+		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er1, c.Log)
 	}
 	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
 	models := reflect.New(modelsType).Interface()
 	count, nextPageToken, er2 := c.search(r.Context(), filter, models, limit, offset)
 	if er2 != nil {
-		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.Error, c.Resource, c.Action, er2, c.Log)
+		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er2, c.Log)
 	}
 
 	result := s.BuildResultMap(models, count, nextPageToken, c.Config)
 	if x == -1 {
-		return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
-	} else if c.quickSearch && x == 1 {
+		return succeed(ctx, http.StatusOK, result, c.Log, c.ResourceName, c.Activity)
+	} else if c.CSV && x == 1 {
 		result1, ok := s.ResultToCsv(fs, models, count, nextPageToken, c.embedField)
 		if ok {
-			return succeed(ctx, http.StatusOK, result1, c.Log, c.Resource, c.Action)
+			return succeed(ctx, http.StatusOK, result1, c.Log, c.ResourceName, c.Activity)
 		} else {
-			return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
+			return succeed(ctx, http.StatusOK, result, c.Log, c.ResourceName, c.Activity)
 		}
 	} else {
-		return succeed(ctx, http.StatusOK, result, c.Log, c.Resource, c.Action)
+		return succeed(ctx, http.StatusOK, result, c.Log, c.ResourceName, c.Activity)
 	}
 }
 func respondError(ctx echo.Context, code int, result interface{}, logError func(context.Context, string), resource string, action string, err error, writeLog func(ctx context.Context, resource string, action string, success bool, desc string) error) error {
