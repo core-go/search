@@ -10,6 +10,7 @@ const (
 	desc = "desc"
 	asc  = "asc"
 )
+
 func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 	out := make(map[string]interface{})
 	v := reflect.ValueOf(in)
@@ -88,9 +89,9 @@ func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 						sub["min"] = *dateTime.Min
 					}
 					if dateTime.Max != nil {
-						sub["max"] = *dateTime.Min
+						sub["max"] = *dateTime.Max
 					} else if dateTime.Top != nil {
-						sub["top"] = *dateTime.Min
+						sub["top"] = *dateTime.Top
 					}
 					out[n] = sub
 				}
@@ -101,9 +102,9 @@ func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 						sub["min"] = *numberRange.Min
 					}
 					if numberRange.Max != nil {
-						sub["max"] = *numberRange.Min
+						sub["max"] = *numberRange.Max
 					} else if numberRange.Top != nil {
-						sub["top"] = *numberRange.Min
+						sub["top"] = *numberRange.Top
 					}
 					out[n] = sub
 				}
@@ -114,9 +115,9 @@ func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 						sub["min"] = *numberRange.Min
 					}
 					if numberRange.Max != nil {
-						sub["max"] = *numberRange.Min
+						sub["max"] = *numberRange.Max
 					} else if numberRange.Top != nil {
-						sub["top"] = *numberRange.Min
+						sub["top"] = *numberRange.Top
 					}
 					out[n] = sub
 				}
@@ -127,9 +128,9 @@ func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 						sub["min"] = *numberRange.Min
 					}
 					if numberRange.Max != nil {
-						sub["max"] = *numberRange.Min
+						sub["max"] = *numberRange.Max
 					} else if numberRange.Top != nil {
-						sub["top"] = *numberRange.Min
+						sub["top"] = *numberRange.Top
 					}
 					out[n] = sub
 				}
@@ -140,9 +141,9 @@ func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 						sub["min"] = *numberRange.Min
 					}
 					if numberRange.Max != nil {
-						sub["max"] = *numberRange.Min
+						sub["max"] = *numberRange.Max
 					} else if numberRange.Top != nil {
-						sub["top"] = *numberRange.Min
+						sub["top"] = *numberRange.Top
 					}
 					out[n] = sub
 				}
@@ -192,7 +193,7 @@ func getColumnNameForSearch(modelType reflect.Type, sortField string) string {
 	if i > -1 {
 		return column
 	}
-	return ""// sortField // injection
+	return ""
 }
 func getSortType(sortType string) string {
 	if sortType == "-" {
