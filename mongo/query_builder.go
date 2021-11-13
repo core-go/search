@@ -16,11 +16,11 @@ type Builder struct {
 func NewBuilder(resultModelType reflect.Type) *Builder {
 	return &Builder{ModelType: resultModelType}
 }
-func (b *Builder) BuildQuery(filter interface{}) (bson.M, bson.M) {
+func (b *Builder) BuildQuery(filter interface{}) (bson.D, bson.M) {
 	return Build(filter, b.ModelType)
 }
-func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
-	var query = bson.M{}
+func Build(sm interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
+	var query = bson.D{}
 	queryQ := make([]bson.M, 0)
 	hasQ := false
 	var fields = bson.M{}
@@ -118,11 +118,11 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 					}
 				}
 				if key == "prefix" {
-					query[columnName] = primitive.Regex{Pattern: fmt.Sprintf("^%v", psv)}
+					query = append(query, bson.E{Key: columnName, Value: primitive.Regex{Pattern: fmt.Sprintf("^%v", psv)}})
 				} else if key == "equal" {
-					query[columnName] = psv
+					query = append(query, bson.E{Key: columnName, Value: psv})
 				} else  {
-					query[columnName] = primitive.Regex{Pattern: fmt.Sprintf("\\w*%v\\w*", psv)}
+					query = append(query, bson.E{Key: columnName, Value: primitive.Regex{Pattern: fmt.Sprintf("\\w*%v\\w*", psv)}})
 				}
 			}
 		} else if rangeTime, ok := x.(*search.TimeRange); ok && rangeTime != nil {
@@ -140,7 +140,7 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				hc = true
 			}
 			if hc {
-				query[columnName] = actionDateQuery
+				query = append(query, bson.E{Key: columnName, Value: actionDateQuery})
 			}
 		} else if rangeTime, ok := x.(search.TimeRange); ok {
 			actionDateQuery := bson.M{}
@@ -157,7 +157,7 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				hc = true
 			}
 			if hc {
-				query[columnName] = actionDateQuery
+				query = append(query, bson.E{Key: columnName, Value: actionDateQuery})
 			}
 		} else if numberRange, ok := x.(*search.NumberRange); ok && numberRange != nil {
 			amountQuery := bson.M{}
@@ -172,7 +172,7 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				amountQuery["$lt"] = *numberRange.Top
 			}
 			if len(amountQuery) > 0 {
-				query[columnName] = amountQuery
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
 			}
 		} else if numberRange, ok := x.(search.NumberRange); ok {
 			amountQuery := bson.M{}
@@ -187,7 +187,7 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				amountQuery["$lt"] = *numberRange.Top
 			}
 			if len(amountQuery) > 0 {
-				query[columnName] = amountQuery
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
 			}
 		} else if numberRange, ok := x.(*search.Int64Range); ok && numberRange != nil {
 			amountQuery := bson.M{}
@@ -202,7 +202,7 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				amountQuery["$lt"] = *numberRange.Top
 			}
 			if len(amountQuery) > 0 {
-				query[columnName] = amountQuery
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
 			}
 		} else if numberRange, ok := x.(search.Int64Range); ok {
 			amountQuery := bson.M{}
@@ -217,7 +217,7 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				amountQuery["$lt"] = *numberRange.Top
 			}
 			if len(amountQuery) > 0 {
-				query[columnName] = amountQuery
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
 			}
 		} else if rangeDate, ok := x.(*search.DateRange); ok && rangeDate != nil {
 			actionDateQuery := bson.M{}
@@ -231,7 +231,7 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				actionDateQuery["$lte"] = rangeDate.Max
 				actionDateQuery["$gte"] = rangeDate.Min
 			}
-			query[columnName] = actionDateQuery
+			query = append(query, bson.E{Key: columnName, Value: actionDateQuery})
 		} else if rangeDate, ok := x.(search.DateRange); ok {
 			actionDateQuery := bson.M{}
 			if rangeDate.Min == nil && rangeDate.Max == nil {
@@ -244,29 +244,29 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.M, bson.M) {
 				actionDateQuery["$lte"] = rangeDate.Max
 				actionDateQuery["$gte"] = rangeDate.Min
 			}
-			query[columnName] = actionDateQuery
+			query = append(query, bson.E{Key: columnName, Value: actionDateQuery})
 		} else if ks == "slice" {
 			if field.Len() > 0 {
 				actionDateQuery := bson.M{}
 				actionDateQuery["$in"] = x
-				query[columnName] = actionDateQuery
+				query = append(query, bson.E{Key: columnName, Value: actionDateQuery})
 			}
 		} else {
 			if _, ok := x.(*search.Filter); ks == "bool" || (strings.Contains(ks, "int") && x != 0) || (strings.Contains(ks, "float") && x != 0) || (!ok && ks == "ptr" &&
 				value.Field(i).Pointer() != 0) {
 				if len(columnName) > 0 {
-					query[columnName] = x
+					query = append(query, bson.E{Key: columnName, Value: x})
 				}
 			}
 		}
 	}
 	if hasQ {
-		query["$or"] = queryQ
+		query = append(query, bson.E{Key: "$or", Value: queryQ})
 	}
 	if excluding != nil && len(excluding) > 0 {
 		actionDateQuery := bson.M{}
 		actionDateQuery["$nin"] = excluding
-		query["_id"] = actionDateQuery
+		query = append(query, bson.E{Key: "_id", Value: actionDateQuery})
 	}
 	return query, fields
 }
