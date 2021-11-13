@@ -223,6 +223,66 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
 			if len(amountQuery) > 0 {
 				query = append(query, bson.E{Key: columnName, Value: amountQuery})
 			}
+		} else if numberRange, ok := x.(*search.IntRange); ok && numberRange != nil {
+			amountQuery := bson.M{}
+			if numberRange.Min != nil {
+				amountQuery["$gte"] = *numberRange.Min
+			} else if numberRange.Bottom != nil {
+				amountQuery["$gt"] = *numberRange.Bottom
+			}
+			if numberRange.Max != nil {
+				amountQuery["$lte"] = *numberRange.Max
+			} else if numberRange.Top != nil {
+				amountQuery["$lt"] = *numberRange.Top
+			}
+			if len(amountQuery) > 0 {
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
+			}
+		} else if numberRange, ok := x.(search.IntRange); ok {
+			amountQuery := bson.M{}
+			if numberRange.Min != nil {
+				amountQuery["$gte"] = *numberRange.Min
+			} else if numberRange.Bottom != nil {
+				amountQuery["$gt"] = *numberRange.Bottom
+			}
+			if numberRange.Max != nil {
+				amountQuery["$lte"] = *numberRange.Max
+			} else if numberRange.Top != nil {
+				amountQuery["$lt"] = *numberRange.Top
+			}
+			if len(amountQuery) > 0 {
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
+			}
+		} else if numberRange, ok := x.(*search.Int32Range); ok && numberRange != nil {
+			amountQuery := bson.M{}
+			if numberRange.Min != nil {
+				amountQuery["$gte"] = *numberRange.Min
+			} else if numberRange.Bottom != nil {
+				amountQuery["$gt"] = *numberRange.Bottom
+			}
+			if numberRange.Max != nil {
+				amountQuery["$lte"] = *numberRange.Max
+			} else if numberRange.Top != nil {
+				amountQuery["$lt"] = *numberRange.Top
+			}
+			if len(amountQuery) > 0 {
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
+			}
+		} else if numberRange, ok := x.(search.Int32Range); ok {
+			amountQuery := bson.M{}
+			if numberRange.Min != nil {
+				amountQuery["$gte"] = *numberRange.Min
+			} else if numberRange.Bottom != nil {
+				amountQuery["$gt"] = *numberRange.Bottom
+			}
+			if numberRange.Max != nil {
+				amountQuery["$lte"] = *numberRange.Max
+			} else if numberRange.Top != nil {
+				amountQuery["$lt"] = *numberRange.Top
+			}
+			if len(amountQuery) > 0 {
+				query = append(query, bson.E{Key: columnName, Value: amountQuery})
+			}
 		} else if rangeDate, ok := x.(*search.DateRange); ok && rangeDate != nil {
 			actionDateQuery := bson.M{}
 			if rangeDate.Min == nil && rangeDate.Max == nil {

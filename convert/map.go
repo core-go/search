@@ -120,6 +120,32 @@ func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 					}
 					out[n] = sub
 				}
+			} else if numberRange, ok := fv.(s.IntRange); ok {
+				if numberRange.Min != nil || numberRange.Max != nil || numberRange.Top != nil {
+					sub := make(map[string]interface{})
+					if numberRange.Min != nil {
+						sub["min"] = *numberRange.Min
+					}
+					if numberRange.Max != nil {
+						sub["max"] = *numberRange.Min
+					} else if numberRange.Top != nil {
+						sub["top"] = *numberRange.Min
+					}
+					out[n] = sub
+				}
+			} else if numberRange, ok := fv.(s.Int32Range); ok {
+				if numberRange.Min != nil || numberRange.Max != nil || numberRange.Top != nil {
+					sub := make(map[string]interface{})
+					if numberRange.Min != nil {
+						sub["min"] = *numberRange.Min
+					}
+					if numberRange.Max != nil {
+						sub["max"] = *numberRange.Min
+					} else if numberRange.Top != nil {
+						sub["top"] = *numberRange.Min
+					}
+					out[n] = sub
+				}
 			} else {
 				out[n] = fv
 			}
