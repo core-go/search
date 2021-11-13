@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+func UseQuery(resultModelType reflect.Type) func(filter interface{}) (bson.D, bson.M) {
+	b := NewBuilder(resultModelType)
+	return b.BuildQuery
+}
 type Builder struct {
 	ModelType reflect.Type
 }
