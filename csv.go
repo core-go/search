@@ -12,21 +12,21 @@ const (
 	layout     string = "2006-01-02T15:04:05"
 )
 
-func BuildCsv(rows []string, fields []string, valueOfModels reflect.Value, embedFieldName string) []string {
-	if lengthResult := valueOfModels.Len(); lengthResult > 0 {
-		model := valueOfModels.Index(0).Interface()
+func BuildCsv(rows []string, fields []string, valueOfmodels reflect.Value, embedFieldName string) []string {
+	if lengthResult := valueOfmodels.Len(); lengthResult > 0 {
+		model := valueOfmodels.Index(0).Interface()
 
-		firstLayerIndexes, secondLayerIndexes := findIndexByTagJsonOrEmbeddedFieldName(model, fields, embedFieldName)
+		firstLayerIndexes, secondLayerIndexes := findIndexByTagJsonOrEmbededFieldName(model, fields, embedFieldName)
 
 		for i := 0; i < lengthResult; i++ {
 			var cols []string
-			valueOfModel := valueOfModels.Index(i)
+			valueOfmodel := valueOfmodels.Index(i)
 			for _, fieldName := range fields {
 				if index, exist := firstLayerIndexes[fieldName]; exist {
-					valueOfFieldName := valueOfModel.Field(index)
+					valueOfFieldName := valueOfmodel.Field(index)
 					cols = AppendColumns(valueOfFieldName, cols)
 				} else if index, exist := secondLayerIndexes[fieldName]; exist {
-					embedFieldValue := reflect.Indirect(valueOfModel.Field(firstLayerIndexes[embedFieldName]))
+					embedFieldValue := reflect.Indirect(valueOfmodel.Field(firstLayerIndexes[embedFieldName]))
 					valueOfFieldName := embedFieldValue.Field(index)
 					cols = AppendColumns(valueOfFieldName, cols)
 				}
@@ -45,14 +45,19 @@ func AppendColumns(value reflect.Value, cols []string) []string {
 	if v == "" || v == "0" || v == "<nil>" {
 		cols = append(cols, "")
 	} else {
-		if fmt.Sprintf("%v", value.Kind()) == s {
-			if strings.Contains(v, ",") {
-				//a := "\"" + string(strings.ReplaceAll(v, x, y)) + "\""
-				cols = append(cols, "")
+		skind := fmt.Sprintf("%v", value.Kind())
+		if skind == s {
+			c := strings.Contains(v, `"`)
+			if c || strings.Contains(v, ",") {
+				if c {
+					v = strings.ReplaceAll(v, `"`, `""`)
+				}
+				v = "\"" + v + "\""
+				cols = append(cols, v)
 			} else {
-				cols = append(cols, fmt.Sprintf("%v", v))
+				cols = append(cols, v)
 			}
-		} else if fmt.Sprintf("%v", value.Kind()) == "ptr" || fmt.Sprintf("%v", value.Kind()) == "struct" {
+		} else if skind == "ptr" || skind == "struct" {
 			fieldDate, err := time.Parse(layoutDate, v)
 			if err != nil {
 				fmt.Println("err", fmt.Sprintf("%v", err))
@@ -60,7 +65,7 @@ func AppendColumns(value reflect.Value, cols []string) []string {
 			} else {
 				cols = append(cols, fmt.Sprintf("%v", fieldDate.UTC().Format(layout)))
 			}
-		} else if fmt.Sprintf("%v", value.Kind()) == in || fmt.Sprintf("%v", value.Kind()) == f {
+		} else if skind == in || skind == f {
 			cols = append(cols, fmt.Sprintf("%v", v))
 		} else {
 			cols = append(cols, fmt.Sprintf("%v", ""))
@@ -69,7 +74,7 @@ func AppendColumns(value reflect.Value, cols []string) []string {
 	return cols
 }
 
-func findIndexByTagJsonOrEmbeddedFieldName(model interface{}, jsonNames []string, embedFieldName string) (firstLayerIndex map[string]int, secondLayerIndexes map[string]int) {
+func findIndexByTagJsonOrEmbededFieldName(model interface{}, jsonNames []string, embedFieldName string) (firstLayerIndex map[string]int, secondLayerIndexes map[string]int) {
 	tmp := make([]string, len(jsonNames))
 	copy(tmp, jsonNames)
 
