@@ -2,15 +2,13 @@ package search
 
 import (
 	"fmt"
+	"math/big"
 	"reflect"
 	"strings"
 	"time"
 )
 
-const (
-	layoutDate string = "2006-01-02 15:04:05 +0700 +07"
-	layout     string = "2006-01-02T15:04:05"
-)
+const DateLayout string = "2006-01-02 15:04:05 +0700 +07"
 
 func BuildCsv(rows []string, fields []string, valueOfmodels reflect.Value, embedFieldName string) []string {
 	if lengthResult := valueOfmodels.Len(); lengthResult > 0 {
@@ -61,10 +59,20 @@ func AppendColumns(value reflect.Value, cols []string) []string {
 		} else {
 			d, okD := i.(time.Time)
 			if okD {
-				v := d.Format(layoutDate)
+				v := d.Format(DateLayout)
 				cols = append(cols, v)
 			} else {
-				cols = append(cols, fmt.Sprintf("%v", v))
+				f, okBF := i.(big.Float)
+				if okBF {
+					cols = append(cols, f.String())
+				} else {
+					bi, okBI := i.(big.Int)
+					if okBI {
+						cols = append(cols, fmt.Sprintf("%v", bi.String()))
+					} else {
+						cols = append(cols, fmt.Sprintf("%v", i))
+					}
+				}
 			}
 		}
 	}
