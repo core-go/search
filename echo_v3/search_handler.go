@@ -11,7 +11,7 @@ import (
 const sSearch = "search"
 
 type SearchHandler struct {
-	search       func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
+	Find         func(ctx context.Context, filter interface{}, results interface{}, limit int64, options ...int64) (int64, string, error)
 	modelType    reflect.Type
 	filterType   reflect.Type
 	LogError     func(context.Context, string,...map[string]interface{})
@@ -23,8 +23,10 @@ type SearchHandler struct {
 	embedField   string
 	userId       string
 	// search by GET
-	paramIndex  map[string]int
-	filterIndex int
+	ParamIndex       map[string]int
+	FilterIndex      int
+	JsonMap          map[string]int
+	SecondaryJsonMap map[string]int
 }
 
 func NewSearchHandler(search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), modelType reflect.Type, filterType reflect.Type, logError func(context.Context, string,...map[string]interface{}), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SearchHandler {
@@ -91,15 +93,17 @@ func NewSearchHandlerWithConfig(search func(context.Context, interface{}, interf
 	}
 	paramIndex := s.BuildParamIndex(filterType)
 	filterIndex := s.FindFilterIndex(filterType)
-
-	return &SearchHandler{search: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, CSV: quickSearch, ResourceName: resource, Activity: action, paramIndex: paramIndex, filterIndex: filterIndex, userId: userId, embedField: embedField, LogError: logError}
+	model := reflect.New(modelType).Interface()
+	fields := s.GetJSONFields(modelType)
+	firstLayerIndexes, secondLayerIndexes := s.BuildJsonMap(model, fields, embedField)
+	return &SearchHandler{Find: search, modelType: modelType, filterType: filterType, Config: c, Log: writeLog, CSV: quickSearch, ResourceName: resource, Activity: action, ParamIndex: paramIndex, FilterIndex: filterIndex, userId: userId, embedField: embedField, LogError: logError, JsonMap: firstLayerIndexes, SecondaryJsonMap: secondLayerIndexes}
 }
 
 const internalServerError = "Internal Server Error"
 
 func (c *SearchHandler) Search(ctx echo.Context) error {
 	r := ctx.Request()
-	filter, x, er0 := s.BuildFilter(r, c.filterType, c.paramIndex, c.userId, c.filterIndex)
+	filter, x, er0 := s.BuildFilter(r, c.filterType, c.ParamIndex, c.userId, c.FilterIndex)
 	if er0 != nil {
 		return ctx.String(http.StatusBadRequest, "cannot parse form: "+"cannot decode filter: "+er0.Error())
 	}
@@ -109,7 +113,7 @@ func (c *SearchHandler) Search(ctx echo.Context) error {
 	}
 	modelsType := reflect.Zero(reflect.SliceOf(c.modelType)).Type()
 	models := reflect.New(modelsType).Interface()
-	count, nextPageToken, er2 := c.search(r.Context(), filter, models, limit, offset)
+	count, nextPageToken, er2 := c.Find(r.Context(), filter, models, limit, offset)
 	if er2 != nil {
 		return respondError(ctx, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er2, c.Log)
 	}
