@@ -433,7 +433,7 @@ func Build(obj map[string]interface{}, template Template, param func(int) string
 	results := make([]string, 0)
 	params := make([]interface{}, 0)
 	i := 1
-	renderNodes := renderTemplateNodes(obj, template.Templates)
+	renderNodes := RenderTemplateNodes(obj, template.Templates)
 	for _, sub := range renderNodes {
 		skipArray := sub.Array == "skip"
 		s := Merge(obj, sub.Format, param, i, skipArray, sub.Separator, sub.Prefix, sub.Suffix, toArray)
@@ -449,7 +449,7 @@ func Build(obj map[string]interface{}, template Template, param func(int) string
 	}
 	return strings.Join(results, ""), params
 }
-func renderTemplateNodes(obj map[string]interface{}, templateNodes []TemplateNode) []TemplateNode {
+func RenderTemplateNodes(obj map[string]interface{}, templateNodes []TemplateNode) []TemplateNode {
 	nodes := make([]TemplateNode, 0)
 	for _, sub := range templateNodes {
 		t := sub.Type
