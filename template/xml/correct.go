@@ -1,4 +1,4 @@
-package template
+package xml
 
 import "strings"
 

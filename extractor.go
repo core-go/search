@@ -84,7 +84,11 @@ func Extract(m interface{}) (int64, int64, []string, string, string, error) {
 			limit = sModel.Limit
 			offset = sModel.Limit * (sModel.Page - 1)
 		}
-		return limit, offset, sModel.Fields, sModel.Sort, sModel.RefId, nil
+		nextPageToken := sModel.RefId
+		if len(nextPageToken) == 0 {
+			nextPageToken = sModel.NextPageToken
+		}
+		return limit, offset, sModel.Fields, sModel.Sort, nextPageToken, nil
 	} else {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
@@ -103,7 +107,11 @@ func Extract(m interface{}) (int64, int64, []string, string, string, error) {
 					limit1 = sModel1.Limit
 					offset1 = sModel1.Limit * (sModel1.Page - 1)
 				}
-				return limit1, offset1, sModel1.Fields, sModel1.Sort, sModel1.RefId, nil
+				nextPageToken := sModel.RefId
+				if len(nextPageToken) == 0 {
+					nextPageToken = sModel.NextPageToken
+				}
+				return limit1, offset1, sModel1.Fields, sModel1.Sort, nextPageToken, nil
 			}
 		}
 		return 0, 0, nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")

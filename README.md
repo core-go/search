@@ -15,3 +15,12 @@ Import:
 ```go
 import "github.com/core-go/search"
 ```
+
+## Dynamic query
+Build dynamic query for:
+- SQL
+- Cassandra
+- Hive
+- Mongo
+- DynamoDB
+- Elastic Search

@@ -16,6 +16,7 @@ type Filter struct {
 	Q             string   `yaml:"q" mapstructure:"q" json:"q,omitempty" gorm:"column:q" bson:"q,omitempty" dynamodbav:"q,omitempty" firestore:"q,omitempty"`
 	Excluding     []string `yaml:"excluding" mapstructure:"excluding" json:"excluding,omitempty" gorm:"column:excluding" bson:"excluding,omitempty" dynamodbav:"excluding,omitempty" firestore:"excluding,omitempty"`
 	RefId         string   `yaml:"ref_id" mapstructure:"ref_id" json:"refId,omitempty" gorm:"column:refid" bson:"refId,omitempty" dynamodbav:"refId,omitempty" firestore:"refId,omitempty"`
+	NextPageToken string   `yaml:"next_page_token" mapstructure:"next_page_token" json:"nextPageToken,omitempty" gorm:"column:nextpagetoken" bson:"nextPageToken,omitempty" dynamodbav:"nextPageToken,omitempty" firestore:"nextPageToken,omitempty"`
 }
 type Result struct {
 	Total         int64       `yaml:"total" mapstructure:"total" json:"total,omitempty" gorm:"column:total" bson:"total,omitempty" dynamodbav:"total,omitempty" firestore:"total,omitempty"`

@@ -1,22 +1,14 @@
 package query
 
 import (
-	"database/sql"
 	"fmt"
 	s "github.com/core-go/search"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	driverPostgres   = "postgres"
-	driverMysql      = "mysql"
-	driverMssql      = "mssql"
-	driverOracle     = "oracle"
-	driverSqlite3    = "sqlite3"
-	driverNotSupport = "no support"
 	desc             = "desc"
 	asc              = "asc"
 )
@@ -24,25 +16,20 @@ const (
 type Builder struct {
 	TableName  string
 	ModelType  reflect.Type
-	Driver     string
 	BuildParam func(int) string
 }
-func UseQuery(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) func(interface{}) (string, []interface{}) {
-	b:= NewBuilder(db, tableName, modelType, options...)
+func UseQuery(tableName string, modelType reflect.Type, options ...func(int) string) func(interface{}) (string, []interface{}) {
+	b:= NewBuilder(tableName, modelType, options...)
 	return b.BuildQuery
 }
-func NewBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *Builder {
-	driver := getDriver(db)
+func NewBuilder(tableName string, modelType reflect.Type, options ...func(int) string) *Builder {
 	var build func(int) string
 	if len(options) > 0 {
 		build = options[0]
 	} else {
-		build = getBuild(db)
+		build = BuildParam
 	}
-	return NewBuilderWithDriver(tableName, modelType, driver, build)
-}
-func NewBuilderWithDriver(tableName string, modelType reflect.Type, driver string, buildParam func(int) string) *Builder {
-	return &Builder{TableName: tableName, ModelType: modelType, Driver: driver, BuildParam: buildParam}
+	return &Builder{TableName: tableName, ModelType: modelType, BuildParam: build}
 }
 
 const (
@@ -73,20 +60,14 @@ func getJoinFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 
 func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	return getStringFromTag(typeOfField, "sql_builder", "column:")
-	/*tag := typeOfField.Tag
-	properties := strings.Split(tag.Get("sql_builder"), ";")
-	for _, property := range properties {
-		if strings.HasPrefix(property, "column:") {
-			column := property[7:]
-			return &column
-		}
-	}
-	return nil*/
 }
 func (b *Builder) BuildQuery(fm interface{}) (string, []interface{}) {
-	return Build(fm, b.TableName, b.ModelType, b.Driver, b.BuildParam)
+	return Build(fm, b.TableName, b.ModelType, b.BuildParam)
 }
-func Build(fm interface{}, tableName string, modelType reflect.Type, driver string, buildParam func(int) string) (string, []interface{}) {
+func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam func(int) string) (string, []interface{}) {
+	if buildParam == nil {
+		buildParam = BuildParam
+	}
 	s1 := ""
 	rawConditions := make([]string, 0)
 	queryValues := make([]interface{}, 0)
@@ -222,11 +203,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				if key == "equal" {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, "=", param))
 				} else {
-					if driver == driverPostgres { // "postgres"
-						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ilike`, param))
-					} else {
-						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
-					}
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
 					if key == "prefix" {
 						queryValues = append(queryValues, prefix(value2))
 					} else {
@@ -467,20 +444,11 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 	}
 	if len(qCols) > 0 {
 		qConditions := make([]string, 0)
-		if driver == driverPostgres { // "postgres"
-			for i, s := range qCols {
-				param := buildParam(marker + 1)
-				qConditions = append(qConditions, fmt.Sprintf("%s %s %s", s, `ilike`, param))
-				queryValues = append(queryValues, qQueryValues[i])
-				marker++
-			}
-		} else {
-			for i, s := range qCols {
-				param := buildParam(marker + 1)
-				qConditions = append(qConditions, fmt.Sprintf("%s %s %s", s, like, param))
-				queryValues = append(queryValues, qQueryValues[i])
-				marker++
-			}
+		for i, s := range qCols {
+			param := buildParam(marker + 1)
+			qConditions = append(qConditions, fmt.Sprintf("%s %s %s", s, like, param))
+			queryValues = append(queryValues, qQueryValues[i])
+			marker++
 		}
 		if len(qConditions) > 0 {
 			rawConditions = append(rawConditions, " (" + strings.Join(qConditions, " or ") + ") ")
@@ -639,50 +607,8 @@ func getSortType(sortType string) string {
 	}
 }
 
-func getDriver(db *sql.DB) string {
-	if db == nil {
-		return driverNotSupport
-	}
-	driver := reflect.TypeOf(db.Driver()).String()
-	switch driver {
-	case "*pq.Driver":
-		return driverPostgres
-	case "*godror.drv":
-		return driverOracle
-	case "*mysql.MySQLDriver":
-		return driverMysql
-	case "*mssql.Driver":
-		return driverMssql
-	case "*sqlite3.SQLiteDriver":
-		return driverSqlite3
-	default:
-		return driverNotSupport
-	}
-}
-func buildParam(i int) string {
+func BuildParam(i int) string {
 	return "?"
-}
-func buildOracleParam(i int) string {
-	return ":" + strconv.Itoa(i)
-}
-func buildMsSqlParam(i int) string {
-	return "@p" + strconv.Itoa(i)
-}
-func buildDollarParam(i int) string {
-	return "$" + strconv.Itoa(i)
-}
-func getBuild(db *sql.DB) func(i int) string {
-	driver := reflect.TypeOf(db.Driver()).String()
-	switch driver {
-	case "*pq.Driver":
-		return buildDollarParam
-	case "*godror.drv":
-		return buildOracleParam
-	case "*mssql.Driver":
-		return buildMsSqlParam
-	default:
-		return buildParam
-	}
 }
 func buildParametersFrom(i int, numCol int, buildParam func(i int) string) string {
 	var arrValue []string
