@@ -351,7 +351,7 @@ func RenderTemplateNodes(obj map[string]interface{}, templateNodes []TemplateNod
 		if t == TypeText {
 			nodes = append(nodes, sub)
 		} else {
-			attr := valueOf(obj, sub.Property)
+			attr := ValueOf(obj, sub.Property)
 			if t == TypeIsNotNull {
 				if attr != nil {
 					vo := reflect.Indirect(reflect.ValueOf(attr))
@@ -424,7 +424,7 @@ func isValidProperty(v string) bool {
 	}
 	return true
 }
-func valueOf(m interface{}, path string) interface{} {
+func ValueOf(m interface{}, path string) interface{} {
 	arr := strings.Split(path, ".")
 	i := 0
 	var c interface{}

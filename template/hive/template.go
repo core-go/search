@@ -29,7 +29,7 @@ func Merge(obj map[string]interface{}, format set.StringFormat, j int, skipArray
 	k := j
 	params := make([]interface{}, 0)
 	if len(separator) > 0 && len(parameters) == 1 {
-		p := valueOf(obj, parameters[0].Name)
+		p := set.ValueOf(obj, parameters[0].Name)
 		vo := reflect.Indirect(reflect.ValueOf(p))
 		if vo.Kind() == reflect.Slice {
 			l := vo.Len()
@@ -51,7 +51,7 @@ func Merge(obj map[string]interface{}, format set.StringFormat, j int, skipArray
 	length := len(parameters)
 	for i := 0; i < length; i++ {
 		results = append(results, texts[i])
-		p := valueOf(obj, parameters[i].Name)
+		p := set.ValueOf(obj, parameters[i].Name)
 		if p != nil {
 			if parameters[i].Type == set.ParamText {
 				results = append(results, fmt.Sprintf("%v", p))
@@ -110,25 +110,6 @@ func Build(obj map[string]interface{}, template set.Template) string {
 		}
 	}
 	return strings.Join(results, "")
-}
-func valueOf(m interface{}, path string) interface{} {
-	arr := strings.Split(path, ".")
-	i := 0
-	var c interface{}
-	c = m
-	l1 := len(arr) - 1
-	for i < len(arr) {
-		key := arr[i]
-		m2, ok := c.(map[string]interface{})
-		if ok {
-			c = m2[key]
-		}
-		if !ok || i >= l1 {
-			return c
-		}
-		i++
-	}
-	return c
 }
 type QueryBuilder struct {
 	Template  set.Template

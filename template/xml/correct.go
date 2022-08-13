@@ -2,7 +2,7 @@ package xml
 
 import "strings"
 
-func CorrectXml(stream string) string {
+func Correct(stream string) string {
 	text := stream
 	if strings.Index(text, " >= ") >= 0 {
 		text = strings.Replace(text, " >= ", " &gt;= ", -1)
