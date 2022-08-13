@@ -451,7 +451,11 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				marker += field.Len()
 			}
 		} else {
-			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, exact, param))
+			key, ok := tag.Lookup("operator")
+			if !ok {
+				key = "="
+			}
+			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, key, param))
 			queryValues = append(queryValues, x)
 		}
 	}

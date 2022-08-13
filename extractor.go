@@ -158,6 +158,10 @@ func GetRefId(m interface{}) string {
 	_, _, r := GetFieldsAndSortAndRefId(m)
 	return r
 }
+func GetNextPageToken(m interface{}) string {
+	_, _, r := GetFieldsAndSortAndRefId(m)
+	return r
+}
 func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string) {
 	var fields []string
 	var sort, refId string

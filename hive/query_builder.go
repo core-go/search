@@ -351,9 +351,13 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, eDate.Format(d0)))
 			}
 		} else {
+			key, ok1 := tag.Lookup("operator")
+			if !ok1 {
+				key = "="
+			}
 			param, ok := GetDBValue(value2, 2, "")
 			if ok {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, exact, param))
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, key, param))
 			}
 		}
 	}
