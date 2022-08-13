@@ -304,117 +304,69 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 			}
 		} else if numberRange, ok := x.(s.Int64Range); ok {
 			if numberRange.Min != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
-				queryValues = append(queryValues, numberRange.Min)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterEqualThan, numberRange.Min))
 			} else if numberRange.Bottom != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterThan, param))
-				queryValues = append(queryValues, numberRange.Bottom)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterThan, numberRange.Bottom))
 			}
 			if numberRange.Max != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
-				queryValues = append(queryValues, numberRange.Max)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessEqualThan, numberRange.Max))
 			} else if numberRange.Top != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
-				queryValues = append(queryValues, numberRange.Top)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessThan, numberRange.Top))
 			}
 		} else if numberRange, ok := x.(*s.Int64Range); ok && numberRange != nil {
 			if numberRange.Min != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
-				queryValues = append(queryValues, numberRange.Min)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterEqualThan, numberRange.Min))
 			} else if numberRange.Bottom != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterThan, param))
-				queryValues = append(queryValues, numberRange.Bottom)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterThan, numberRange.Bottom))
 			}
 			if numberRange.Max != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
-				queryValues = append(queryValues, numberRange.Max)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessEqualThan, numberRange.Max))
 			} else if numberRange.Top != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
-				queryValues = append(queryValues, numberRange.Top)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessThan, numberRange.Top))
 			}
 		} else if numberRange, ok := x.(s.IntRange); ok {
 			if numberRange.Min != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
-				queryValues = append(queryValues, numberRange.Min)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterEqualThan, numberRange.Min))
 			} else if numberRange.Bottom != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterThan, param))
-				queryValues = append(queryValues, numberRange.Bottom)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterThan, numberRange.Bottom))
 			}
 			if numberRange.Max != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
-				queryValues = append(queryValues, numberRange.Max)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessEqualThan, numberRange.Max))
 			} else if numberRange.Top != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
-				queryValues = append(queryValues, numberRange.Top)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessThan, numberRange.Top))
 			}
 		} else if numberRange, ok := x.(*s.IntRange); ok && numberRange != nil {
 			if numberRange.Min != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
-				queryValues = append(queryValues, numberRange.Min)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterEqualThan, numberRange.Min))
 			} else if numberRange.Bottom != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterThan, param))
-				queryValues = append(queryValues, numberRange.Bottom)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterThan, numberRange.Bottom))
 			}
 			if numberRange.Max != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
-				queryValues = append(queryValues, numberRange.Max)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessEqualThan, numberRange.Max))
 			} else if numberRange.Top != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
-				queryValues = append(queryValues, numberRange.Top)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessThan, numberRange.Top))
 			}
 		} else if numberRange, ok := x.(s.Int32Range); ok {
 			if numberRange.Min != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
-				queryValues = append(queryValues, numberRange.Min)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterEqualThan, numberRange.Min))
 			} else if numberRange.Bottom != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterThan, param))
-				queryValues = append(queryValues, numberRange.Bottom)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterThan, numberRange.Bottom))
 			}
 			if numberRange.Max != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
-				queryValues = append(queryValues, numberRange.Max)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessEqualThan, numberRange.Max))
 			} else if numberRange.Top != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
-				queryValues = append(queryValues, numberRange.Top)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessThan, numberRange.Top))
 			}
 		} else if numberRange, ok := x.(*s.Int32Range); ok && numberRange != nil {
 			if numberRange.Min != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
-				queryValues = append(queryValues, numberRange.Min)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterEqualThan, numberRange.Min))
 			} else if numberRange.Bottom != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterThan, param))
-				queryValues = append(queryValues, numberRange.Bottom)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, greaterThan, numberRange.Bottom))
 			}
 			if numberRange.Max != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
-				queryValues = append(queryValues, numberRange.Max)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessEqualThan, numberRange.Max))
 			} else if numberRange.Top != nil {
-				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
-				queryValues = append(queryValues, numberRange.Top)
-				marker++
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %d", columnName, lessThan, numberRange.Top))
 			}
 		} else if dateRange, ok := x.(s.DateRange); ok {
 			if dateRange.Min != nil {
@@ -456,6 +408,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 			}
 			rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, key, param))
 			queryValues = append(queryValues, x)
+			marker += 1
 		}
 	}
 

@@ -18,7 +18,6 @@ const (
 	t2 = "2006-01-02T15:04:05-0700"
 	t3 = "2006-01-02T15:04:05.0000000-0700"
 
-	l0 = len(t0)
 	l1 = len(t1)
 	l2 = len(t2)
 	l3 = len(t3)
@@ -40,7 +39,6 @@ func NewBuilder(tableName string, modelType reflect.Type) *Builder {
 }
 
 const (
-	exact            = "="
 	like             = "like"
 	greaterEqualThan = ">="
 	greaterThan      = ">"
