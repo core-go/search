@@ -70,8 +70,8 @@ func (e *Extractor) Extract(m interface{}) (int64, int64, int64, error) {
 }
 
 func Extract(m interface{}) (int64, int64, []string, string, string, error) {
+	var limit, offset int64
 	if sModel, ok := m.(*Filter); ok {
-		var limit, offset int64
 		if sModel.FirstLimit > 0 {
 			if sModel.Page == 1 {
 				limit = sModel.FirstLimit
@@ -93,31 +93,30 @@ func Extract(m interface{}) (int64, int64, []string, string, string, error) {
 		value := reflect.Indirect(reflect.ValueOf(m))
 		numField := value.NumField()
 		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*Filter); ok {
-				var limit1, offset1 int64
-				if sModel1.FirstLimit > 0 {
-					if sModel1.Page <= 1 {
-						limit1 = sModel1.FirstLimit
-						offset1 = 0
+			if sModel, ok := value.Field(i).Interface().(*Filter); ok {
+				if sModel.FirstLimit > 0 {
+					if sModel.Page <= 1 {
+						limit = sModel.FirstLimit
+						offset = 0
 					} else {
-						limit1 = sModel1.Limit
-						offset1 = sModel1.Limit*(sModel1.Page-2) + sModel1.FirstLimit
+						limit = sModel.Limit
+						offset = sModel.Limit*(sModel.Page-2) + sModel.FirstLimit
 					}
 				} else {
-					limit1 = sModel1.Limit
-					offset1 = sModel1.Limit * (sModel1.Page - 1)
+					limit = sModel.Limit
+					offset = sModel.Limit * (sModel.Page - 1)
 				}
 				nextPageToken := sModel.RefId
 				if len(nextPageToken) == 0 {
 					nextPageToken = sModel.NextPageToken
 				}
-				return limit1, offset1, sModel1.Fields, sModel1.Sort, nextPageToken, nil
+				return limit, offset, sModel.Fields, sModel.Sort, nextPageToken, nil
 			}
 		}
 		return 0, 0, nil, "", "", errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
 }
-func GetOffset(limit int64, page int64, opts...int64) int64 {
+func GetOffset(limit int64, page int64, opts ...int64) int64 {
 	var firstLimit int64 = 0
 	if len(opts) > 0 && opts[0] > 0 {
 		firstLimit = opts[0]
