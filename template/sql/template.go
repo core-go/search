@@ -1,6 +1,8 @@
-package template
+package sql
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"reflect"
@@ -9,7 +11,10 @@ import (
 	set "github.com/core-go/search/template"
 )
 
-func Merge(obj map[string]interface{}, format set.StringFormat, param func(int) string, j int, skipArray bool, separator string, prefix string, suffix string) set.TStatement {
+func Merge(obj map[string]interface{}, format set.StringFormat, param func(int) string, j int, skipArray bool, separator string, prefix string, suffix string, toArray func(interface{}) interface {
+	driver.Valuer
+	sql.Scanner
+}) set.TStatement {
 	results := make([]string, 0)
 	parameters := format.Parameters
 	k := j
@@ -22,7 +27,7 @@ func Merge(obj map[string]interface{}, format set.StringFormat, param func(int) 
 			if l > 0 {
 				strs := make([]string, 0)
 				for i := 0; i < l; i++ {
-					ts := Merge(obj, format, param, k, true, "", "", "")
+					ts := Merge(obj, format, param, k, true, "", "", "", toArray)
 					strs = append(strs, ts.Query)
 					model := vo.Index(i).Addr()
 					params = append(params, model.Interface())
@@ -48,7 +53,11 @@ func Merge(obj map[string]interface{}, format set.StringFormat, param func(int) 
 					if l > 0 {
 						if skipArray {
 							results = append(results, param(k))
-							params = append(params, p)
+							if toArray == nil {
+								params = append(params, p)
+							} else {
+								params = append(params, toArray(p))
+							}
 							k = k + 1
 						} else {
 							sa := make([]string, 0)
@@ -74,14 +83,24 @@ func Merge(obj map[string]interface{}, format set.StringFormat, param func(int) 
 	}
 	return set.TStatement{Query: prefix + strings.Join(results, "") + suffix, Params: params, Index: k}
 }
-func Build(obj map[string]interface{}, template set.Template, param func(int) string) (string, []interface{}) {
+func Build(obj map[string]interface{}, template set.Template, param func(int) string, opts ...func(interface{}) interface {
+	driver.Valuer
+	sql.Scanner
+}) (string, []interface{}) {
+	var toArray func(interface{}) interface {
+		driver.Valuer
+		sql.Scanner
+	}
+	if len(opts) > 0 {
+		toArray = opts[0]
+	}
 	results := make([]string, 0)
 	params := make([]interface{}, 0)
 	i := 1
 	renderNodes := set.RenderTemplateNodes(obj, template.Templates)
 	for _, sub := range renderNodes {
 		skipArray := sub.Array == "skip"
-		s := Merge(obj, sub.Format, param, i, skipArray, sub.Separator, sub.Prefix, sub.Suffix)
+		s := Merge(obj, sub.Format, param, i, skipArray, sub.Separator, sub.Prefix, sub.Suffix, toArray)
 		i = s.Index
 		if len(s.Query) > 0 {
 			results = append(results, s.Query)
@@ -119,6 +138,10 @@ type QueryBuilder struct {
 	Map       func(interface{}, *reflect.Type) map[string]interface{}
 	Param     func(int) string
 	Q         func(string) string
+	ToArray   func(interface{}) interface {
+		driver.Valuer
+		sql.Scanner
+	}
 }
 type Builder interface {
 	BuildQuery(f interface{}) (string, []interface{})
@@ -134,11 +157,37 @@ func UseQuery(isTemplate bool, query func(interface{}) (string, []interface{}), 
 	}
 	return b.BuildQuery, nil
 }
+func UseQueryWithArray(isTemplate bool, query func(interface{}) (string, []interface{}), id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type) map[string]interface{}, param func(i int) string, opts ...func(interface{}) interface {
+	driver.Valuer
+	sql.Scanner
+}) (func(interface{}) (string, []interface{}), error) {
+	if !isTemplate {
+		return query, nil
+	}
+	b, err := NewQueryBuilderWithArray(id, m, modelType, mp, param, nil, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return b.BuildQuery, nil
+}
 func UseQueryBuilder(isTemplate bool, builder Builder, id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type) map[string]interface{}, param func(i int) string, opts ...func(string) string) (Builder, error) {
 	if !isTemplate {
 		return builder, nil
 	}
 	return NewQueryBuilder(id, m, modelType, mp, param, opts...)
+}
+func NewQueryBuilderWithArray(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type) map[string]interface{}, param func(i int) string, q func(string) string, opts...func(interface{}) interface {
+	driver.Valuer
+	sql.Scanner
+}) (*QueryBuilder, error) {
+	b, err := NewQueryBuilder(id, m, modelType, mp, param, q)
+	if err != nil {
+		return b, err
+	}
+	if len(opts) > 0 && opts[0] != nil {
+		b.ToArray = opts[0]
+	}
+	return b, nil
 }
 func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type) map[string]interface{}, param func(i int) string, opts ...func(string) string) (*QueryBuilder, error) {
 	t, ok := m[id]
@@ -164,5 +213,5 @@ func (b *QueryBuilder) BuildQuery(f interface{}) (string, []interface{}) {
 			}
 		}
 	}
-	return Build(m, b.Template, b.Param)
+	return Build(m, b.Template, b.Param, b.ToArray)
 }

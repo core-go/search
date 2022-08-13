@@ -8,7 +8,23 @@ import (
 	"reflect"
 	"strings"
 )
-
+var Operators = map[string]string{
+	">=": "$gte",
+	">": "$gt",
+	"<=": "$lte",
+	"<": "$lt",
+}
+/*
+		actionDateQuery["$gte"] = rangeTime.Min
+		hc = true
+	}
+	if rangeTime.Max != nil {
+		actionDateQuery["$lte"] = rangeTime.Max
+		hc = true
+	} else if rangeTime.Top != nil {
+		actionDateQuery["$lt"] = rangeTime.Top
+		hc = true
+ */
 func UseQuery(resultModelType reflect.Type) func(filter interface{}) (bson.D, bson.M) {
 	b := NewBuilder(resultModelType)
 	return b.BuildQuery
@@ -319,7 +335,19 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
 			if _, ok := x.(*search.Filter); ks == "bool" || (strings.Contains(ks, "int") && x != 0) || (strings.Contains(ks, "float") && x != 0) || (!ok && ks == "ptr" &&
 				value.Field(i).Pointer() != 0) {
 				if len(columnName) > 0 {
-					query = append(query, bson.E{Key: columnName, Value: x})
+					oper, ok1 := tf.Tag.Lookup("operator")
+					if ok1 {
+						opr, ok2 := Operators[oper]
+						if ok2 {
+							actionDateQuery := bson.M{}
+							actionDateQuery[opr] = x
+							query = append(query, bson.E{Key: columnName, Value: actionDateQuery})
+						} else {
+							query = append(query, bson.E{Key: columnName, Value: x})
+						}
+					} else {
+						query = append(query, bson.E{Key: columnName, Value: x})
+					}
 				}
 			}
 		}

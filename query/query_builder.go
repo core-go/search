@@ -46,7 +46,6 @@ func NewBuilderWithDriver(tableName string, modelType reflect.Type, driver strin
 }
 
 const (
-	exact            = "="
 	like             = "like"
 	greaterEqualThan = ">="
 	greaterThan      = ">"

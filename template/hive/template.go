@@ -3,7 +3,6 @@ package template
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/big"
 	"reflect"
@@ -166,7 +165,7 @@ func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.T
 	if len(opts) > 0 {
 		q = opts[0]
 	} else {
-		q = Q
+		q = set.Q
 	}
 	return &QueryBuilder{Template: *t, ModelType: modelType, Map: mp, Q: q}, nil
 }
@@ -182,31 +181,6 @@ func (b *QueryBuilder) BuildQuery(f interface{}) string {
 		}
 	}
 	return Build(m, b.Template)
-}
-func ReadFile(filename string) (string, error) {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", err
-	}
-	text := string(content)
-	return text, nil
-}
-func Q(s string) string {
-	if !(strings.HasPrefix(s, "%") && strings.HasSuffix(s, "%")) {
-		return "%" + s + "%"
-	} else if strings.HasPrefix(s, "%") {
-		return s + "%"
-	} else if strings.HasSuffix(s, "%") {
-		return "%" + s
-	}
-	return s
-}
-func Prefix(s string) string {
-	if strings.HasSuffix(s, "%") {
-		return s
-	} else {
-		return s + "%"
-	}
 }
 
 
