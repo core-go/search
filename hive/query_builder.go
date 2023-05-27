@@ -196,14 +196,11 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 		} else if ps || kind == reflect.String {
 			if len(value2) > 0 {
 				param := WrapString(value2)
-				key, ok := tag.Lookup("match")
+				key, ok := tag.Lookup("operator")
 				if !ok {
-					key, ok = tag.Lookup("q")
-					if !ok {
-						key = "contains"
-					}
+					key, _ = tag.Lookup("q")
 				}
-				if key == "equal" {
+				if key == "=" {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, "=", param))
 				} else {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
@@ -580,7 +577,6 @@ func GetDBValue(v interface{}, scale int8, layoutTime string) (string, bool) {
 		if len(s0) == 0 {
 			return "''", true
 		}
-
 		return WrapString(s0), true
 	case bool:
 		b0 := v.(bool)

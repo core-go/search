@@ -84,7 +84,10 @@ func Extract(m interface{}) (int64, int64, []string, string, string, error) {
 			limit = sModel.Limit
 			offset = sModel.Limit * (sModel.Page - 1)
 		}
-		nextPageToken := sModel.RefId
+		nextPageToken := sModel.Next
+		if len(nextPageToken) == 0 {
+			nextPageToken = sModel.RefId
+		}
 		if len(nextPageToken) == 0 {
 			nextPageToken = sModel.NextPageToken
 		}
@@ -126,10 +129,16 @@ func GetOffset(limit int64, page int64, opts ...int64) int64 {
 			return 0
 		} else {
 			offset := limit*(page-2) + firstLimit
+			if offset < 0 {
+				return 0
+			}
 			return offset
 		}
 	} else {
 		offset := limit * (page - 1)
+		if offset < 0 {
+			return 0
+		}
 		return offset
 	}
 }
@@ -190,5 +199,4 @@ func GetFieldsAndSortAndRefId(m interface{}) ([]string, string, string) {
 		}
 		return fields, sort, refId
 	}
-
 }

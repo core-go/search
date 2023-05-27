@@ -185,12 +185,12 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 			if len(keyword) > 0 {
 				qMatch, isQ := tag.Lookup("q")
 				if isQ {
-					if qMatch == "prefix" {
-						qQueryValues = append(qQueryValues, prefix(keyword))
-					} else if qMatch == "equal" {
+					if qMatch == "=" {
 						qQueryValues = append(qQueryValues, keyword)
-					} else {
+					} else if qMatch == "like" {
 						qQueryValues = append(qQueryValues, buildQ(keyword))
+					} else {
+						qQueryValues = append(qQueryValues, prefix(keyword))
 					}
 					qCols = append(qCols, columnName)
 				}
@@ -211,14 +211,11 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 			continue
 		} else if ps || kind == reflect.String {
 			if len(value2) > 0 {
-				key, ok := tag.Lookup("match")
+				key, ok := tag.Lookup("operator")
 				if !ok {
-					key, ok = tag.Lookup("q")
-					if !ok {
-						key = "contains"
-					}
+					key, _ = tag.Lookup("q")
 				}
-				if key == "equal" {
+				if key == "=" {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, "=", param))
 				} else {
 					if driver == driverPostgres { // "postgres"
@@ -226,10 +223,10 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 					} else {
 						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
 					}
-					if key == "prefix" {
-						queryValues = append(queryValues, prefix(value2))
-					} else {
+					if key == "like" {
 						queryValues = append(queryValues, buildQ(value2))
+					} else {
+						queryValues = append(queryValues, prefix(value2))
 					}
 				}
 				marker++

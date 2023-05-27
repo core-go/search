@@ -10,8 +10,16 @@ const (
 	desc = "desc"
 	asc  = "asc"
 )
-
-func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
+func ToMap(in interface{}, modelType *reflect.Type, opts...func(sortString string, modelType reflect.Type) string) map[string]interface{} {
+	return ToMapWithFields(in, "", modelType, opts...)
+}
+func ToMapWithFields(in interface{}, sfields string, modelType *reflect.Type, opts...func(sortString string, modelType reflect.Type) string) map[string]interface{} {
+	var buildSort func(string, reflect.Type) string
+	if len(opts) > 0 && opts[0] != nil {
+		buildSort = opts[0]
+	} else {
+		buildSort = BuildSort
+	}
 	out := make(map[string]interface{})
 	v := reflect.ValueOf(in)
 	if v.Kind() == reflect.Ptr {
@@ -61,7 +69,15 @@ func ToMap(in interface{}, modelType *reflect.Type) map[string]interface{} {
 							fields = append(fields, columnName)
 						}
 					}
-					out["fields"] = strings.Join(fields, ",")
+					if len(fields) > 0 {
+						out["fields"] = strings.Join(fields, ",")
+					} else {
+						if len(sfields) > 0 {
+							out["fields"] = sfields
+						}
+					}
+				} else if len(sfields) > 0 {
+					out["fields"] = sfields
 				}
 			}
 			if len(v.Sort) > 0 {
@@ -165,7 +181,7 @@ func getTag(fi reflect.StructField, tag string) string {
 	}
 	return fi.Name
 }
-func buildSort(sortString string, modelType reflect.Type) string {
+func BuildSort(sortString string, modelType reflect.Type) string {
 	var sort = make([]string, 0)
 	sorts := strings.Split(sortString, ",")
 	for i := 0; i < len(sorts); i++ {

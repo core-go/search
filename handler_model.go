@@ -12,7 +12,7 @@ func BuildNextResultMap(models interface{}, nextPageToken string, config SearchR
 	result := make(map[string]interface{})
 	result[config.Results] = models
 	if len(nextPageToken) > 0 {
-		result[config.NextPageToken] = nextPageToken
+		result[config.Next] = nextPageToken
 	}
 	return result
 }

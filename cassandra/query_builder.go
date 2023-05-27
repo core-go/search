@@ -82,6 +82,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 	numField := value.NumField()
 	var idCol string
 	marker := 0
+	fCount := 0
 	for i := 0; i < numField; i++ {
 		field := value.Field(i)
 		kind := field.Kind()
@@ -166,12 +167,13 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 			if len(keyword) > 0 {
 				qMatch, isQ := tag.Lookup("q")
 				if isQ {
-					if qMatch == "prefix" {
-						qQueryValues = append(qQueryValues, prefix(keyword))
-					} else if qMatch == "equal" {
+					if qMatch == "=" {
 						qQueryValues = append(qQueryValues, keyword)
-					} else {
+
+					} else if qMatch == "like" {
 						qQueryValues = append(qQueryValues, buildQ(keyword))
+					} else {
+						qQueryValues = append(qQueryValues, prefix(keyword))
 					}
 					qCols = append(qCols, columnName)
 				}
@@ -192,21 +194,19 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 			continue
 		} else if ps || kind == reflect.String {
 			if len(value2) > 0 {
-				key, ok := tag.Lookup("match")
+				key, ok := tag.Lookup("operator")
 				if !ok {
-					key, ok = tag.Lookup("q")
-					if !ok {
-						key = "contains"
-					}
+					key, _ = tag.Lookup("q")
 				}
-				if key == "equal" {
+				if key == "=" {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, "=", param))
 				} else {
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
-					if key == "prefix" {
-						queryValues = append(queryValues, prefix(value2))
-					} else {
+					fCount = fCount + 1
+					if key == "like" {
 						queryValues = append(queryValues, buildQ(value2))
+					} else {
+						queryValues = append(queryValues, prefix(value2))
 					}
 				}
 				marker++
@@ -403,6 +403,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 		for i, s := range qCols {
 			param := buildParam(marker + 1)
 			qConditions = append(qConditions, fmt.Sprintf("%s %s %s", s, like, param))
+			fCount = fCount + 1
 			queryValues = append(queryValues, qQueryValues[i])
 			marker++
 		}
@@ -410,11 +411,15 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 			rawConditions = append(rawConditions, " (" + strings.Join(qConditions, " or ") + ") ")
 		}
 	}
+	allowFiltering := ""
+	if fCount >= 1 {
+		allowFiltering = " allow filtering"
+	}
 	if len(rawConditions) > 0 {
-		s2 := s1 + ` where ` + strings.Join(rawConditions, " AND ") + sortString
+		s2 := s1 + ` where ` + strings.Join(rawConditions, " AND ") + sortString + allowFiltering
 		return s2, queryValues
 	}
-	s3 := s1 + sortString
+	s3 := s1 + sortString + allowFiltering
 	return s3, queryValues
 }
 func extractArray(values []interface{}, field interface{}) []interface{} {

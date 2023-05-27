@@ -95,12 +95,12 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
 				if isQ {
 					hasQ = true
 					queryQ1 := bson.M{}
-					if qMatch == "prefix" {
-						queryQ1[columnName] = primitive.Regex{Pattern: fmt.Sprintf("^%v", keyword)}
-					} else if qMatch == "equal" {
+					if qMatch == "=" {
 						queryQ1[columnName] = keyword
-					} else {
+					} else if qMatch == "like" {
 						queryQ1[columnName] = primitive.Regex{Pattern: fmt.Sprintf("\\w*%v\\w*", keyword)}
+					} else {
+						queryQ1[columnName] = primitive.Regex{Pattern: fmt.Sprintf("^%v", keyword)}
 					}
 					queryQ = append(queryQ, queryQ1)
 				}
@@ -130,19 +130,16 @@ func Build(sm interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
 			var key string
 			var ok bool
 			if len(psv) > 0 {
-				key, ok = tf.Tag.Lookup("match")
+				key, ok = tf.Tag.Lookup("operator")
 				if !ok {
-					key, ok = tf.Tag.Lookup("q")
-					if !ok {
-						key = "contains"
-					}
+					key, _ = tf.Tag.Lookup("q")
 				}
-				if key == "prefix" {
-					query = append(query, bson.E{Key: columnName, Value: primitive.Regex{Pattern: fmt.Sprintf("^%v", psv)}})
-				} else if key == "equal" {
+				if key == "=" {
 					query = append(query, bson.E{Key: columnName, Value: psv})
-				} else  {
+				} else if key == "like" {
 					query = append(query, bson.E{Key: columnName, Value: primitive.Regex{Pattern: fmt.Sprintf("\\w*%v\\w*", psv)}})
+				} else  {
+					query = append(query, bson.E{Key: columnName, Value: primitive.Regex{Pattern: fmt.Sprintf("^%v", psv)}})
 				}
 			}
 		} else if rangeTime, ok := x.(*search.TimeRange); ok && rangeTime != nil {
