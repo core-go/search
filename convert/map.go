@@ -45,12 +45,12 @@ func ToMapWithFields(in interface{}, sfields string, modelType *reflect.Type, op
 		if ok {
 			if len(sv) > 0 {
 				n := getTag(typ.Field(i), "json")
-				m := getTag(typ.Field(i), "match")
+				m := getTag(typ.Field(i), "operator")
 				w := sv
-				if m == "prefix" {
-					w = Prefix(sv)
-				} else if m != "equal" {
+				if m == "like" {
 					w = Q(sv)
+				} else if m != "=" {
+					w = Prefix(sv)
 				}
 				out[n] = w
 			}

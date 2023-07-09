@@ -89,26 +89,23 @@ func Build(sm interface{}, modelType reflect.Type, tableName string) (dynamodb.S
 				var condition expression.ConditionBuilder
 				if !field.IsNil() {
 					if key, ok := value.Type().Field(i).Tag.Lookup("match"); ok {
-						if key == d.PREFIX {
-							condition = expression.Name(name).BeginsWith(psv)
-						} else if key == d.CONTAIN {
-							condition = expression.Name(name).Contains(psv)
-						} else if key == d.EQUAL {
+						if key == "=" {
 							condition = expression.Name(name).Equal(expression.Value(psv))
+						} else if key == "like" {
+							condition = expression.Name(name).Contains(psv)
 						} else {
+							condition = expression.Name(name).BeginsWith(psv)
 							log.Panicf("match not support \"%v\" format\n", key)
 						}
 					}
 				} else if len(keyword) > 0 {
 					if key, ok := value.Type().Field(i).Tag.Lookup("keyword"); ok {
-						if key == d.PREFIX {
-							condition = expression.Name(name).BeginsWith(psv)
-						} else if key == d.CONTAIN {
-							condition = expression.Name(name).Contains(psv)
-						} else if key == d.EQUAL {
+						if key == "=" {
 							condition = expression.Name(name).Equal(expression.Value(psv))
+						} else if key == "like" {
+							condition = expression.Name(name).Contains(psv)
 						} else {
-							log.Panicf("match not support \"%v\" format\n", key)
+							condition = expression.Name(name).BeginsWith(psv)
 						}
 					}
 				}

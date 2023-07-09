@@ -90,7 +90,6 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 		kind := field.Kind()
 		x := field.Interface()
 		typeOfField := value.Type().Field(i)
-		// param := buildParam(marker + 1)
 
 		if v, ok := x.(*s.Filter); ok {
 			if len(v.Fields) > 0 {
@@ -169,12 +168,13 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 			if len(keyword) > 0 {
 				qMatch, isQ := tag.Lookup("q")
 				if isQ {
-					if qMatch == "prefix" {
-						qQueryValues = append(qQueryValues, prefix(keyword))
-					} else if qMatch == "equal" {
+					if qMatch == "=" {
 						qQueryValues = append(qQueryValues, keyword)
-					} else {
+
+					} else if qMatch == "like" {
 						qQueryValues = append(qQueryValues, buildQ(keyword))
+					} else {
+						qQueryValues = append(qQueryValues, prefix(keyword))
 					}
 					qCols = append(qCols, columnName)
 				}
@@ -195,15 +195,20 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 			continue
 		} else if ps || kind == reflect.String {
 			if len(value2) > 0 {
-				param := WrapString(value2)
 				key, ok := tag.Lookup("operator")
 				if !ok {
 					key, _ = tag.Lookup("q")
 				}
 				if key == "=" {
+					param := WrapString(value2)
 					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, "=", param))
 				} else {
-					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
+
+					if key == "like" {
+						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, AllWrapString(value2)))
+					} else {
+						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, PrefixWrapString(value2)))
+					}
 				}
 			}
 		} else if kind == reflect.Slice {
@@ -569,7 +574,12 @@ func join(strs ...string) string {
 func WrapString(v string) string {
 	return join(`'`, v, `'`)
 }
-
+func PrefixWrapString(v string) string {
+	return join(`'`, v, `%'`)
+}
+func AllWrapString(v string) string {
+	return join(`'%`, v, `%'`)
+}
 func GetDBValue(v interface{}, scale int8, layoutTime string) (string, bool) {
 	switch v.(type) {
 	case string:

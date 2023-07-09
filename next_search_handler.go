@@ -85,7 +85,7 @@ func NewNextSearchHandlerWithConfig(search func(context.Context, interface{}, in
 		// c.LastPage = "last"
 		c.Results = "list"
 		c.Total = "total"
-		c.NextPageToken = "nextPageToken"
+		c.Next = "next"
 	}
 
 	paramIndex := BuildParamIndex(filterType)

@@ -23,7 +23,7 @@ const (
 	l2 = len(t2)
 	l3 = len(t3)
 )
-func Merge(obj map[string]interface{}, format set.StringFormat, skipArray bool, separator string, prefix string, suffix string) set.TStatement {
+func Merge(obj map[string]interface{}, format set.StringFormat, skipArray bool, separator string, prefix string, suffix string) string {
 	results := make([]string, 0)
 	parameters := format.Parameters
 	if len(separator) > 0 && len(parameters) == 1 {
@@ -35,10 +35,10 @@ func Merge(obj map[string]interface{}, format set.StringFormat, skipArray bool, 
 				strs := make([]string, 0)
 				for i := 0; i < l; i++ {
 					ts := Merge(obj, format, true, "", "", "")
-					strs = append(strs, ts.Query)
+					strs = append(strs, ts)
 				}
 				results = append(results, strings.Join(strs, separator))
-				return set.TStatement{Query: prefix + strings.Join(results, "") + suffix}
+				return prefix + strings.Join(results, "") + suffix
 			}
 		}
 	}
@@ -78,22 +78,16 @@ func Merge(obj map[string]interface{}, format set.StringFormat, skipArray bool, 
 	if len(texts[length]) > 0 {
 		results = append(results, texts[length])
 	}
-	return set.TStatement{Query: prefix + strings.Join(results, "") + suffix}
+	return prefix + strings.Join(results, "") + suffix
 }
 func Build(obj map[string]interface{}, template set.Template) string {
 	results := make([]string, 0)
-	params := make([]interface{}, 0)
 	renderNodes := set.RenderTemplateNodes(obj, template.Templates)
 	for _, sub := range renderNodes {
 		skipArray := sub.Array == "skip"
 		s := Merge(obj, sub.Format, skipArray, sub.Separator, sub.Prefix, sub.Suffix)
-		if len(s.Query) > 0 {
-			results = append(results, s.Query)
-			if len(s.Params) > 0 {
-				for _, p := range s.Params {
-					params = append(params, p)
-				}
-			}
+		if len(s) > 0 {
+			results = append(results, s)
 		}
 	}
 	return strings.Join(results, "")
@@ -109,23 +103,23 @@ type Builder interface {
 	BuildQuery(f interface{}) string
 }
 
-func UseQuery(isTemplate bool, query func(interface{}) string, id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, opts ...func(string) string) (func(interface{}) string, error) {
+func UseQuery(isTemplate bool, query func(interface{}) string, id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (func(interface{}) string, error) {
 	if !isTemplate {
 		return query, nil
 	}
-	b, err := NewQueryBuilder(id, m, modelType, mp, opts...)
+	b, err := NewQueryBuilder(id, m, modelType, mp, buildSort, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return b.BuildQuery, nil
 }
-func UseQueryBuilder(isTemplate bool, builder Builder, id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, opts ...func(string) string) (Builder, error) {
+func UseQueryBuilder(isTemplate bool, builder Builder, id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (Builder, error) {
 	if !isTemplate {
 		return builder, nil
 	}
-	return NewQueryBuilder(id, m, modelType, mp, opts...)
+	return NewQueryBuilder(id, m, modelType, mp, buildSort, opts...)
 }
-func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, opts ...func(string) string) (*QueryBuilder, error) {
+func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (*QueryBuilder, error) {
 	t, ok := m[id]
 	if !ok || t == nil {
 		return nil, errors.New("cannot get the template with id " + id)
@@ -136,7 +130,7 @@ func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.T
 	} else {
 		q = set.Q
 	}
-	return &QueryBuilder{Template: *t, ModelType: modelType, Map: mp, Q: q}, nil
+	return &QueryBuilder{Template: *t, ModelType: modelType, Map: mp, BuildSort: buildSort, Q: q}, nil
 }
 func (b *QueryBuilder) BuildQuery(f interface{}) string {
 	m := b.Map(f, b.ModelType, b.BuildSort)
