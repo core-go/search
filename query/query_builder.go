@@ -238,10 +238,12 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				marker += 1
 			}
 			if dateTime.Max != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
 				queryValues = append(queryValues, dateTime.Max)
 				marker += 1
 			} else if dateTime.Top != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 				queryValues = append(queryValues, dateTime.Top)
 				marker += 1
@@ -253,10 +255,12 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				marker += 1
 			}
 			if dateTime.Max != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
 				queryValues = append(queryValues, dateTime.Max)
 				marker += 1
 			} else if dateTime.Top != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 				queryValues = append(queryValues, dateTime.Top)
 				marker += 1
@@ -272,10 +276,12 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				marker++
 			}
 			if numberRange.Max != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
 				queryValues = append(queryValues, numberRange.Max)
 				marker++
 			} else if numberRange.Top != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 				queryValues = append(queryValues, numberRange.Top)
 				marker++
@@ -291,10 +297,12 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				marker++
 			}
 			if numberRange.Max != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessEqualThan, param))
 				queryValues = append(queryValues, numberRange.Max)
 				marker++
 			} else if numberRange.Top != nil {
+				param := buildParam(marker + 1)
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
 				queryValues = append(queryValues, numberRange.Top)
 				marker++
@@ -372,6 +380,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				marker += 1
 			}
 			if dateRange.Max != nil {
+				param := buildParam(marker + 1)
 				var eDate = dateRange.Max.Add(time.Hour * 24)
 				dateRange.Max = &eDate
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
@@ -385,6 +394,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 				marker += 1
 			}
 			if dateRange.Max != nil {
+				param := buildParam(marker + 1)
 				var eDate = dateRange.Max.Add(time.Hour * 24)
 				dateRange.Max = &eDate
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, lessThan, param))
