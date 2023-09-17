@@ -22,5 +22,4 @@ Build dynamic query for:
 - Cassandra
 - Hive
 - Mongo
-- DynamoDB
 - Elastic Search
