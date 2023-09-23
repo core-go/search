@@ -181,14 +181,14 @@ func BuildParamIndex(filterType reflect.Type) map[string]int {
 	}
 	return params
 }
-type Params struct {
+type Parameters struct {
 	ParamIndex  map[string]int
 	FilterIndex int
 	CSVIndex    map[string]int
 }
-func InitParams(filterType reflect.Type, modelType reflect.Type) *Params {
+func CreateParameters(filterType reflect.Type, modelType reflect.Type) *Parameters {
 	paramIndex, filterIndex, firstLayerIndexes, _ := CreateParams(filterType, modelType)
-	return &Params{ParamIndex: paramIndex, FilterIndex: filterIndex, CSVIndex: firstLayerIndexes}
+	return &Parameters{ParamIndex: paramIndex, FilterIndex: filterIndex, CSVIndex: firstLayerIndexes}
 }
 func CreateParams(filterType reflect.Type, modelType reflect.Type, opts...string) (map[string]int, int, map[string]int, map[string]int) {
 	embedField := ""
