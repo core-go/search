@@ -26,7 +26,7 @@ func (c *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := BuildResultMap(models, count, c.Config)
+	result := BuildResultMap(models, count, c.List, c.Total)
 	if x == -1 {
 		succeed(w, r, http.StatusOK, result, c.WriteLog, c.ResourceName, c.Activity)
 	} else if c.CSV && x == 1 {
@@ -60,7 +60,7 @@ func (c *NextSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := BuildNextResultMap(models, nx, c.Config)
+	result := BuildNextResultMap(models, nx, c.List, c.Next)
 	if x == -1 {
 		succeed(w, r, http.StatusOK, result, c.WriteLog, c.ResourceName, c.Activity)
 	} else if c.CSV && x == 1 {
