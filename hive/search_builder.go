@@ -3,10 +3,11 @@ package hive
 import (
 	"context"
 	"fmt"
-	hv "github.com/beltran/gohive"
 	"reflect"
 	"strconv"
 	"strings"
+
+	hv "github.com/beltran/gohive"
 )
 
 const (
@@ -15,30 +16,6 @@ const (
 	DefaultPagingFormat = " limit %s offset %s "
 )
 
-func GetOffset(limit int64, page int64, opts...int64) int64 {
-	var firstLimit int64 = 0
-	if len(opts) > 0 && opts[0] > 0 {
-		firstLimit = opts[0]
-	}
-	if firstLimit > 0 {
-		if page <= 1 {
-			return 0
-		} else {
-			offset := limit*(page-2) + firstLimit
-			if offset < 0 {
-				return 0
-			}
-			return offset
-		}
-	} else {
-		offset := limit * (page - 1)
-		if offset < 0 {
-			return 0
-		}
-		return offset
-	}
-}
-
 type SearchBuilder struct {
 	Connection  *hv.Connection
 	BuildQuery  func(sm interface{}) string
@@ -46,6 +23,7 @@ type SearchBuilder struct {
 	Map         func(ctx context.Context, model interface{}) (interface{}, error)
 	fieldsIndex map[string]int
 }
+
 func NewSearchBuilder(connection *hv.Connection, modelType reflect.Type, buildQuery func(interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) (*SearchBuilder, error) {
 	var mp func(context.Context, interface{}) (interface{}, error)
 	if len(options) >= 1 {
@@ -83,10 +61,6 @@ func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results inter
 		if cursor.Err != nil {
 			return count, cursor.Err
 		}
-	}
-	if b.Map != nil {
-		_, err := MapModels(ctx, results, b.Map)
-		return count, err
 	}
 	return count, err
 }

@@ -2,12 +2,13 @@ package cassandra
 
 import (
 	"errors"
-	"github.com/gocql/gocql"
 	"reflect"
 	"strings"
+
+	"github.com/gocql/gocql"
 )
 
-func ScanIter(iter *gocql.Iter, results interface{}, options...map[string]int) error {
+func ScanIter(iter *gocql.Iter, results interface{}, options ...map[string]int) error {
 	modelType := reflect.TypeOf(results).Elem().Elem()
 
 	tb, er2 := Scan(iter, modelType, options...)
@@ -61,7 +62,7 @@ func FindTag(tag string, key string) (string, bool) {
 	}
 	return "", false
 }
-func Scan(iter *gocql.Iter, modelType reflect.Type, options...map[string]int) (t []interface{}, err error) {
+func Scan(iter *gocql.Iter, modelType reflect.Type, options ...map[string]int) (t []interface{}, err error) {
 	var fieldsIndex map[string]int
 	if len(options) > 0 && options[0] != nil {
 		fieldsIndex = options[0]

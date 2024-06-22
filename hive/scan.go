@@ -3,13 +3,10 @@ package hive
 import (
 	"context"
 	"errors"
-	hv "github.com/beltran/gohive"
 	"reflect"
 	"strings"
-)
 
-const (
-	IgnoreReadWrite = "-"
+	hv "github.com/beltran/gohive"
 )
 
 func Query(ctx context.Context, cursor *hv.Cursor, fieldsIndex map[string]int, results interface{}, sql string) error {
@@ -40,22 +37,26 @@ func appendToArray(arr interface{}, item interface{}) interface{} {
 	return arr
 }
 func GetColumnIndexes(modelType reflect.Type) (map[string]int, error) {
-	ma := make(map[string]int, 0)
+	ma := make(map[string]int)
+	if modelType.Kind() == reflect.Ptr {
+		modelType = modelType.Elem()
+	}
 	if modelType.Kind() != reflect.Struct {
 		return ma, errors.New("bad type")
 	}
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
 		ormTag := field.Tag.Get("gorm")
-		column, ok := FindTag(ormTag, "column")
-		column = strings.ToLower(column)
-		if ok {
-			ma[column] = i
+		if ormTag != "-" {
+			column, ok := FindTag(ormTag, "column")
+			column = strings.ToLower(column)
+			if ok {
+				ma[column] = i
+			}
 		}
 	}
 	return ma, nil
 }
-
 func FindTag(tag string, key string) (string, bool) {
 	if has := strings.Contains(tag, key); has {
 		str1 := strings.Split(tag, ";")
@@ -71,7 +72,6 @@ func FindTag(tag string, key string) (string, bool) {
 	}
 	return "", false
 }
-
 func GetColumns(cursors *hv.Cursor) ([]string, map[string]string, error) {
 	var mcols = make(map[string]string, 0)
 	var columnNames = make([]string, 0)
@@ -86,24 +86,24 @@ func GetColumns(cursors *hv.Cursor) ([]string, map[string]string, error) {
 	return columnNames, mcols, nil
 }
 
-func Scan(cursors *hv.Cursor, modelType reflect.Type, fieldsIndex map[string]int) (t []interface{}, err error) {
+func Scan(cursor *hv.Cursor, modelType reflect.Type, fieldsIndex map[string]int) (t []interface{}, err error) {
 	if fieldsIndex == nil {
 		fieldsIndex, err = GetColumnIndexes(modelType)
 		if err != nil {
 			return
 		}
 	}
-	columns, mcols, er0 := GetColumns(cursors)
+	columns, mcols, er0 := GetColumns(cursor)
 	if er0 != nil {
 		return nil, er0
 	}
 	ctx := context.Background()
-	for cursors.HasMore(ctx) {
+	for cursor.HasMore(ctx) {
 		initModel := reflect.New(modelType).Interface()
 		r, _ := StructScan(initModel, columns, fieldsIndex)
-		fieldPointers := cursors.RowMap(ctx)
-		if cursors.Err != nil {
-			return t, cursors.Err
+		fieldPointers := cursor.RowMap(ctx)
+		if cursor.Err != nil {
+			return t, cursor.Err
 		}
 		for _, c := range columns {
 			if colm, ok := mcols[c]; ok {

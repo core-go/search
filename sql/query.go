@@ -17,37 +17,10 @@ const (
 	asc                 = "asc"
 )
 
-func GetOffset(limit int64, page int64, opts...int64) int64 {
-	var firstLimit int64 = 0
-	if len(opts) > 0 && opts[0] > 0 {
-		firstLimit = opts[0]
-	}
-	if firstLimit > 0 {
-		if page <= 1 {
-			return 0
-		} else {
-			offset := limit*(page-2) + firstLimit
-			if offset < 0 {
-				return 0
-			}
-			return offset
-		}
-	} else {
-		offset := limit * (page - 1)
-		if offset < 0 {
-			return 0
-		}
-		return offset
-	}
-}
 func BuildFromQuery(ctx context.Context, db *sql.DB, fieldsIndex map[string]int, models interface{}, query string, params []interface{}, limit int64, offset int64, toArray func(interface{}) interface {
 	driver.Valuer
 	sql.Scanner
-}, options...func(context.Context, interface{}) (interface{}, error)) (int64, error) {
-	var mp func(context.Context, interface{}) (interface{}, error)
-	if len(options) > 0 && options[0] != nil {
-		mp = options[0]
-	}
+}) (int64, error) {
 	var total int64
 	driver := GetDriver(db)
 	if limit <= 0 {
@@ -60,8 +33,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, fieldsIndex map[string]int,
 			i := objectValues.Len()
 			total = int64(i)
 		}
-		er2 := BuildSearchResult(ctx, models, mp)
-		return total, er2
+		return total, nil
 	} else {
 		if driver == DriverOracle {
 			queryPaging := BuildPagingQueryByDriver(query, limit, offset, driver)
@@ -69,8 +41,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, fieldsIndex map[string]int,
 			if er1 != nil {
 				return -1, er1
 			}
-			er2 := BuildSearchResult(ctx, models, mp)
-			return total, er2
+			return total, nil
 		} else {
 			queryPaging := BuildPagingQuery(query, limit, offset, driver)
 			queryCount := BuildCountQuery(query)
@@ -82,8 +53,7 @@ func BuildFromQuery(ctx context.Context, db *sql.DB, fieldsIndex map[string]int,
 			if er2 != nil {
 				total = 0
 			}
-			er3 := BuildSearchResult(ctx, models, mp)
-			return total, er3
+			return total, nil
 		}
 	}
 }
@@ -110,7 +80,7 @@ func BuildPagingQueryByDriver(sql string, limit int64, offset int64, driver stri
 		return s2
 	}
 }
-func BuildPagingQuery(sql string, limit int64, offset int64, opts...string) string {
+func BuildPagingQuery(sql string, limit int64, offset int64, opts ...string) string {
 	if offset < 0 {
 		offset = 0
 	}
@@ -151,13 +121,6 @@ func BuildCountQuery(sql string) string {
 	}
 }
 
-func BuildSearchResult(ctx context.Context, models interface{}, mp func(context.Context, interface{}) (interface{}, error)) error {
-	if mp == nil {
-		return nil
-	}
-	_, err := MapModels(ctx, models, mp)
-	return err
-}
 func GetSort(sortString string, modelType reflect.Type) string {
 	var sort = make([]string, 0)
 	sorts := strings.Split(sortString, ",")

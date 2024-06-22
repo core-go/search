@@ -18,22 +18,18 @@ type SearchBuilder struct {
 	DB          *gocql.ClusterConfig
 	BuildQuery  func(sm interface{}) (string, []interface{})
 	ModelType   reflect.Type
-	Map         func(ctx context.Context, model interface{}) (interface{}, error)
 	fieldsIndex map[string]int
 }
-func NewSearchQuery(db *gocql.ClusterConfig, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) (*SearchBuilder, error) {
-	return NewSearchBuilder(db, modelType, buildQuery, options...)
+
+func NewSearchQuery(db *gocql.ClusterConfig, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{})) (*SearchBuilder, error) {
+	return NewSearchBuilder(db, modelType, buildQuery)
 }
-func NewSearchBuilder(db *gocql.ClusterConfig, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) (*SearchBuilder, error) {
-	var mp func(context.Context, interface{}) (interface{}, error)
-	if len(options) >= 1 {
-		mp = options[0]
-	}
+func NewSearchBuilder(db *gocql.ClusterConfig, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{})) (*SearchBuilder, error) {
 	fieldsIndex, err := GetColumnIndexes(modelType)
 	if err != nil {
 		return nil, err
 	}
-	builder := &SearchBuilder{DB: db, fieldsIndex: fieldsIndex, BuildQuery: buildQuery, ModelType: modelType, Map: mp}
+	builder := &SearchBuilder{DB: db, fieldsIndex: fieldsIndex, BuildQuery: buildQuery, ModelType: modelType}
 	return builder, nil
 }
 
@@ -45,14 +41,10 @@ func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results inter
 	if err != nil {
 		return "", err
 	}
-	nextPageToken, er2 := QueryWithMap(ses, b.fieldsIndex, results, sql, params, limit, refId, b.Map)
+	nextPageToken, er2 := QueryWithMap(ses, b.fieldsIndex, results, sql, params, limit, refId)
 	return nextPageToken, er2
 }
-func QueryWithMap(ses *gocql.Session, fieldsIndex map[string]int, results interface{}, sql string, values []interface{}, max int64, refId string, options...func(context.Context, interface{}) (interface{}, error)) (string, error) {
-	var mp func(context.Context, interface{}) (interface{}, error)
-	if len(options) > 0 && options[0] != nil {
-		mp = options[0]
-	}
+func QueryWithMap(ses *gocql.Session, fieldsIndex map[string]int, results interface{}, sql string, values []interface{}, max int64, refId string) (string, error) {
 	next, er0 := hex.DecodeString(refId)
 	if er0 != nil {
 		return "", er0
@@ -66,10 +58,6 @@ func QueryWithMap(ses *gocql.Session, fieldsIndex map[string]int, results interf
 		return "", err
 	}
 	nextPageToken := hex.EncodeToString(query.Iter().PageState())
-	if mp != nil {
-		_, err := MapModels(context.Background(), results, mp)
-		return nextPageToken, err
-	}
 	return nextPageToken, nil
 }
 func GetSort(sortString string, modelType reflect.Type) string {

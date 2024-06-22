@@ -18,6 +18,7 @@ type SearchBuilder struct {
 		sql.Scanner
 	}
 }
+
 func NewSearchBuilder(db *sql.DB, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) (*SearchBuilder, error) {
 	return NewSearchBuilderWithArray(db, modelType, buildQuery, nil, options...)
 }
@@ -38,7 +39,7 @@ func NewSearchBuilderWithArray(db *sql.DB, modelType reflect.Type, buildQuery fu
 }
 
 func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results interface{}, limit int64, offset int64) (int64, error) {
-	sql, params := b.BuildQuery(m)
-	total, er2 := BuildFromQuery(ctx, b.Database, b.fieldsIndex, results, sql, params, limit, offset, b.ToArray, b.Map)
+	query, params := b.BuildQuery(m)
+	total, er2 := BuildFromQuery(ctx, b.Database, b.fieldsIndex, results, query, params, limit, offset, b.ToArray)
 	return total, er2
 }
