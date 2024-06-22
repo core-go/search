@@ -16,34 +16,31 @@ var Operators = map[string]string{
 	"<":  "$lt",
 }
 
-/*
-		actionDateQuery["$gte"] = rangeTime.Min
-		hc = true
+func UseQueryByResultType[F any](resultModelType reflect.Type) func(filter F) (bson.D, bson.M) {
+	b := NewBuilder[F](resultModelType)
+	return b.BuildQuery
+}
+func UseQuery[T any, F any]() func(filter F) (bson.D, bson.M) {
+	var t T
+	resultModelType := reflect.TypeOf(t)
+	if resultModelType.Kind() == reflect.Ptr {
+		resultModelType = resultModelType.Elem()
 	}
-
-	if rangeTime.Max != nil {
-		actionDateQuery["$lte"] = rangeTime.Max
-		hc = true
-	} else if rangeTime.Top != nil {
-
-actionDateQuery["$lt"] = rangeTime.Top
-hc = true
-*/
-func UseQuery(resultModelType reflect.Type) func(filter interface{}) (bson.D, bson.M) {
-	b := NewBuilder(resultModelType)
+	b := NewBuilder[F](resultModelType)
 	return b.BuildQuery
 }
 
-type Builder struct {
+type Builder[F any] struct {
 	ModelType reflect.Type
 }
 
-func NewBuilder(resultModelType reflect.Type) *Builder {
-	return &Builder{ModelType: resultModelType}
+func NewBuilder[F any](resultModelType reflect.Type) *Builder[F] {
+	return &Builder[F]{ModelType: resultModelType}
 }
-func (b *Builder) BuildQuery(filter interface{}) (bson.D, bson.M) {
+func (b *Builder[F]) BuildQuery(filter F) (bson.D, bson.M) {
 	return Build(filter, b.ModelType)
 }
+
 func Build(sm interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
 	var query = bson.D{}
 	queryQ := make([]bson.M, 0)

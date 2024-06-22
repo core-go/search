@@ -13,24 +13,29 @@ const (
 	asc  = "asc"
 )
 
-type Builder struct {
+type Builder[T any, F any] struct {
 	TableName  string
 	ModelType  reflect.Type
 	BuildParam func(int) string
 }
 
-func UseQuery(tableName string, modelType reflect.Type, options ...func(int) string) func(interface{}) (string, []interface{}) {
-	b := NewBuilder(tableName, modelType, options...)
+func UseQuery[T any, F any](tableName string, options ...func(int) string) func(F) (string, []interface{}) {
+	b := NewBuilder[T, F](tableName, options...)
 	return b.BuildQuery
 }
-func NewBuilder(tableName string, modelType reflect.Type, options ...func(int) string) *Builder {
+func NewBuilder[T any, F any](tableName string, options ...func(int) string) *Builder[T, F] {
 	var build func(int) string
 	if len(options) > 0 {
 		build = options[0]
 	} else {
 		build = BuildParam
 	}
-	return &Builder{TableName: tableName, ModelType: modelType, BuildParam: build}
+	var t T
+	resultModelType := reflect.TypeOf(t)
+	if resultModelType.Kind() == reflect.Ptr {
+		resultModelType = resultModelType.Elem()
+	}
+	return &Builder[T, F]{TableName: tableName, ModelType: resultModelType, BuildParam: build}
 }
 
 const (
@@ -61,7 +66,7 @@ func getJoinFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	return getStringFromTag(typeOfField, "sql_builder", "column:")
 }
-func (b *Builder) BuildQuery(fm interface{}) (string, []interface{}) {
+func (b *Builder[T, F]) BuildQuery(fm F) (string, []interface{}) {
 	return Build(fm, b.TableName, b.ModelType, b.BuildParam)
 }
 func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam func(int) string) (string, []interface{}) {
