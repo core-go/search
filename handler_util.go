@@ -279,9 +279,25 @@ func ResultToCsv(fields []string, models interface{}, count int64, embedField st
 		return "", false
 	}
 }
+func ResultCsv(fields []string, models interface{}, count int64, opts ...map[string]int) (string, bool) {
+	if len(fields) > 0 {
+		result1 := ToCsv(fields, models, count, "", opts...)
+		return result1, true
+	} else {
+		return "", false
+	}
+}
 func ResultToNextCsv(fields []string, models interface{}, nextPageToken string, embedField string, opts ...map[string]int) (string, bool) {
 	if len(fields) > 0 {
 		result1 := ToNextCsv(fields, models, nextPageToken, embedField, opts...)
+		return result1, true
+	} else {
+		return "", false
+	}
+}
+func ResultNextCsv(fields []string, models interface{}, nextPageToken string, opts ...map[string]int) (string, bool) {
+	if len(fields) > 0 {
+		result1 := ToNextCsv(fields, models, nextPageToken, "", opts...)
 		return result1, true
 	} else {
 		return "", false

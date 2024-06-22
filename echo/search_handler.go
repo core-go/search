@@ -5,6 +5,8 @@ import (
 	s "github.com/core-go/search"
 	"net/http"
 	"reflect"
+
+	"github.com/labstack/echo/v4"
 )
 
 const sSearch = "search"

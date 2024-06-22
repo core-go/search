@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"reflect"
 
@@ -97,15 +98,16 @@ func NewSearchHandlerWithQuickSearch[T any, F any](search func(context.Context, 
 
 const internalServerError = "Internal Server Error"
 
-func (c *SearchHandler[T, F]) Search(w http.ResponseWriter, r *http.Request) {
+func (c *SearchHandler[T, F]) Search(ctx *gin.Context) {
+	r := ctx.Request
 	filter, x, er0 := s.BuildFilter(r, c.filterType, c.ParamIndex, c.userId, c.FilterIndex)
 	if er0 != nil {
-		http.Error(w, "cannot decode filter: "+er0.Error(), http.StatusBadRequest)
+		ctx.String(http.StatusBadRequest, "cannot decode filter: "+er0.Error())
 		return
 	}
 	limit, offset, fs, _, _, er1 := s.Extract(filter)
 	if er1 != nil {
-		s.RespondError(w, r, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er1, c.WriteLog)
+		respondError(ctx, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er1, c.WriteLog)
 		return
 	}
 	var ft F
@@ -113,7 +115,7 @@ func (c *SearchHandler[T, F]) Search(w http.ResponseWriter, r *http.Request) {
 	if c.isPtr {
 		ft, ok = filter.(F)
 		if !ok {
-			http.Error(w, fmt.Sprintf("cannot cast filter %v", filter), http.StatusBadRequest)
+			ctx.String(http.StatusBadRequest, fmt.Sprintf("cannot cast filter %v", filter))
 			return
 		}
 	} else {
@@ -121,26 +123,38 @@ func (c *SearchHandler[T, F]) Search(w http.ResponseWriter, r *http.Request) {
 		pt := reflect.Indirect(mv).Interface()
 		ft, ok = pt.(F)
 		if !ok {
-			http.Error(w, fmt.Sprintf("cannot cast filter %v", filter), http.StatusBadRequest)
+			ctx.String(http.StatusBadRequest, fmt.Sprintf("cannot cast filter %v", filter))
 			return
 		}
 	}
 	models, count, er2 := c.Find(r.Context(), ft, limit, offset)
 	if er2 != nil {
-		s.RespondError(w, r, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er2, c.WriteLog)
+		respondError(ctx, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er2, c.WriteLog)
 		return
 	}
 	res := s.BuildResultMap(models, count, c.List, c.Total)
 	if x == -1 {
-		s.Respond(w, r, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
+		respond(ctx, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
 	} else if c.CSV && x == 1 {
 		resCSV, ok := s.ResultToCsv(fs, models, count, c.embedField, c.JsonMap, c.SecondaryJsonMap)
 		if ok {
-			s.Respond(w, r, http.StatusOK, resCSV, c.WriteLog, c.ResourceName, c.Activity, true, "")
+			respond(ctx, http.StatusOK, resCSV, c.WriteLog, c.ResourceName, c.Activity, true, "")
 		} else {
-			s.Respond(w, r, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
+			respond(ctx, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
 		}
 	} else {
-		s.Respond(w, r, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
+		respond(ctx, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
+	}
+}
+func respondError(ctx *gin.Context, code int, result interface{}, logError func(context.Context, string, ...map[string]interface{}), resource string, action string, err error, writeLog func(ctx context.Context, resource string, action string, success bool, desc string) error) {
+	if logError != nil {
+		logError(ctx.Request.Context(), err.Error())
+	}
+	respond(ctx, code, result, writeLog, resource, action, false, err.Error())
+}
+func respond(ctx *gin.Context, code int, result interface{}, writeLog func(ctx context.Context, resource string, action string, success bool, desc string) error, resource string, action string, success bool, desc string) {
+	ctx.JSON(code, result)
+	if writeLog != nil {
+		writeLog(ctx.Request.Context(), resource, action, success, desc)
 	}
 }
