@@ -54,6 +54,7 @@ func BuildQueryByType(sm interface{}, resultModelType reflect.Type) ([]f.Query, 
 				psv = *s0
 			}
 			field = field.Elem()
+			x = field.Interface()
 			kind = field.Kind()
 		}
 		s0, ok0 := x.(string)
@@ -64,7 +65,7 @@ func BuildQueryByType(sm interface{}, resultModelType reflect.Type) ([]f.Query, 
 			psv = s0
 		}
 		ks := kind.String()
-		if v, ok := x.(*search.Filter); ok {
+		if v, ok := x.(search.Filter); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
 					i, _, columnName := getFieldByJson(resultModelType, key)
@@ -117,17 +118,6 @@ func BuildQueryByType(sm interface{}, resultModelType reflect.Type) ([]f.Query, 
 				keywordQuery = f.Query{Path: columnName, Operator: operator, Value: searchValue}
 				query = append(query, keywordQuery)
 			}
-		} else if rangeTime, ok := x.(*search.TimeRange); ok && rangeTime != nil {
-			columnName := getFirestoreName(resultModelType, value.Type().Field(i).Name)
-			actionTimeQuery := make([]f.Query, 0)
-			if rangeTime.Min == nil {
-				actionTimeQuery = []f.Query{{Path: columnName, Operator: "<=", Value: rangeTime.Max}}
-			} else if rangeTime.Max == nil {
-				actionTimeQuery = []f.Query{{Path: columnName, Operator: ">=", Value: rangeTime.Min}}
-			} else {
-				actionTimeQuery = []f.Query{{Path: columnName, Operator: "<=", Value: rangeTime.Max}, {Path: columnName, Operator: ">=", Value: rangeTime.Min}}
-			}
-			query = append(query, actionTimeQuery...)
 		} else if rangeTime, ok := x.(search.TimeRange); ok {
 			columnName := getFirestoreName(resultModelType, value.Type().Field(i).Name)
 			actionTimeQuery := make([]f.Query, 0)
@@ -139,19 +129,6 @@ func BuildQueryByType(sm interface{}, resultModelType reflect.Type) ([]f.Query, 
 				actionTimeQuery = []f.Query{{Path: columnName, Operator: "<=", Value: rangeTime.Max}, {Path: columnName, Operator: ">=", Value: rangeTime.Min}}
 			}
 			query = append(query, actionTimeQuery...)
-		} else if rangeDate, ok := x.(*search.DateRange); ok && rangeDate != nil {
-			columnName := getFirestoreName(resultModelType, value.Type().Field(i).Name)
-			actionDateQuery := make([]f.Query, 0)
-			if rangeDate.Min == nil && rangeDate.Max == nil {
-				continue
-			} else if rangeDate.Min == nil {
-				actionDateQuery = []f.Query{{Path: columnName, Operator: "<=", Value: rangeDate.Max}}
-			} else if rangeDate.Max == nil {
-				actionDateQuery = []f.Query{{Path: columnName, Operator: ">=", Value: rangeDate.Min}}
-			} else {
-				actionDateQuery = []f.Query{{Path: columnName, Operator: "<=", Value: rangeDate.Max}, {Path: columnName, Operator: ">=", Value: rangeDate.Min}}
-			}
-			query = append(query, actionDateQuery...)
 		} else if rangeDate, ok := x.(search.DateRange); ok {
 			columnName := getFirestoreName(resultModelType, value.Type().Field(i).Name)
 			actionDateQuery := make([]f.Query, 0)
@@ -165,24 +142,6 @@ func BuildQueryByType(sm interface{}, resultModelType reflect.Type) ([]f.Query, 
 				actionDateQuery = []f.Query{{Path: columnName, Operator: "<=", Value: rangeDate.Max}, {Path: columnName, Operator: ">=", Value: rangeDate.Min}}
 			}
 			query = append(query, actionDateQuery...)
-		} else if numberRange, ok := x.(*search.NumberRange); ok && numberRange != nil {
-			columnName := getFirestoreName(resultModelType, value.Type().Field(i).Name)
-			amountQuery := make([]f.Query, 0)
-
-			if numberRange.Min != nil {
-				amountQuery = append(amountQuery, f.Query{Path: columnName, Operator: ">=", Value: *numberRange.Min})
-			} else if numberRange.Lower != nil {
-				amountQuery = append(amountQuery, f.Query{Path: columnName, Operator: ">", Value: *numberRange.Lower})
-			}
-			if numberRange.Max != nil {
-				amountQuery = append(amountQuery, f.Query{Path: columnName, Operator: "<=", Value: *numberRange.Max})
-			} else if numberRange.Upper != nil {
-				amountQuery = append(amountQuery, f.Query{Path: columnName, Operator: "<", Value: *numberRange.Upper})
-			}
-
-			if len(amountQuery) > 0 {
-				query = append(query, amountQuery...)
-			}
 		} else if numberRange, ok := x.(search.NumberRange); ok {
 			columnName := getFirestoreName(resultModelType, value.Type().Field(i).Name)
 			amountQuery := make([]f.Query, 0)
@@ -206,7 +165,7 @@ func BuildQueryByType(sm interface{}, resultModelType reflect.Type) ([]f.Query, 
 			q := f.Query{Path: columnName, Operator: "in", Value: x}
 			query = append(query, q)
 		} else {
-			if _, ok := x.(*search.Filter); ks == "bool" || (strings.Contains(ks, "int") && x != 0) || (strings.Contains(ks, "float") && x != 0) || (!ok && ks == "ptr" && field.Pointer() != 0) {
+			if _, ok := x.(search.Filter); ks == "bool" || (strings.Contains(ks, "int") && x != 0) || (strings.Contains(ks, "float") && x != 0) || (!ok && ks == "ptr" && field.Pointer() != 0) {
 				v := value.Type().Field(i).Name
 				columnName := getFirestoreName(resultModelType, v)
 				if len(columnName) > 0 {

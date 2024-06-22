@@ -12,26 +12,21 @@ type SearchBuilder struct {
 	BuildQuery func(m interface{}) (bson.D, bson.M)
 	GetSort    func(m interface{}) string
 	BuildSort  func(s string, modelType reflect.Type) bson.D
-	Map        func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
-func NewSearchQueryWithSort(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string, buildSort func(string, reflect.Type) bson.D, options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
-	return NewSearchBuilderWithSort(db, collectionName, buildQuery, getSort, buildSort, options...)
+func NewSearchQueryWithSort(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string, buildSort func(string, reflect.Type) bson.D) *SearchBuilder {
+	return NewSearchBuilderWithSort(db, collectionName, buildQuery, getSort, buildSort)
 }
-func NewSearchQuery(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
-	return NewSearchBuilderWithSort(db, collectionName, buildQuery, getSort, BuildSort, options...)
+func NewSearchQuery(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string) *SearchBuilder {
+	return NewSearchBuilderWithSort(db, collectionName, buildQuery, getSort, BuildSort)
 }
-func NewSearchBuilderWithSort(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string, buildSort func(string, reflect.Type) bson.D, options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
-	var mp func(context.Context, interface{}) (interface{}, error)
-	if len(options) > 0 && options[0] != nil {
-		mp = options[0]
-	}
+func NewSearchBuilderWithSort(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string, buildSort func(string, reflect.Type) bson.D) *SearchBuilder {
 	collection := db.Collection(collectionName)
-	builder := &SearchBuilder{Collection: collection, BuildQuery: buildQuery, GetSort: getSort, BuildSort: buildSort, Map: mp}
+	builder := &SearchBuilder{Collection: collection, BuildQuery: buildQuery, GetSort: getSort, BuildSort: buildSort}
 	return builder
 }
-func NewSearchBuilder(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
-	return NewSearchBuilderWithSort(db, collectionName, buildQuery, getSort, BuildSort, options...)
+func NewSearchBuilder(db *mongo.Database, collectionName string, buildQuery func(interface{}) (bson.D, bson.M), getSort func(interface{}) string) *SearchBuilder {
+	return NewSearchBuilderWithSort(db, collectionName, buildQuery, getSort, BuildSort)
 }
 func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results interface{}, limit int64, skip int64) (int64, error) {
 	query, fields := b.BuildQuery(m)
@@ -43,5 +38,5 @@ func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results inter
 	if skip < 0 {
 		skip = 0
 	}
-	return BuildSearchResult(ctx, b.Collection, results, query, fields, sort, limit, skip, b.Map)
+	return BuildSearchResult(ctx, b.Collection, results, query, fields, sort, limit, skip)
 }
