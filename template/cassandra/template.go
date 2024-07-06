@@ -87,6 +87,7 @@ func Build(obj map[string]interface{}, template set.Template) (string, []interfa
 	}
 	return strings.Join(results, ""), params
 }
+
 type QueryBuilder struct {
 	Template  set.Template
 	ModelType *reflect.Type
@@ -97,6 +98,7 @@ type QueryBuilder struct {
 type Builder interface {
 	BuildQuery(f interface{}) (string, []interface{})
 }
+
 func UseQuery(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (func(interface{}) (string, []interface{}), error) {
 	b, err := NewQueryBuilder(id, m, modelType, mp, buildSort, opts...)
 	if err != nil {
@@ -123,7 +125,7 @@ func GetQueryBuilder(isTemplate bool, builder Builder, id string, m map[string]*
 	}
 	return NewQueryBuilder(id, m, modelType, mp, buildSort, opts...)
 }
-func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (*QueryBuilder, error) {
+func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (Builder, error) {
 	t, ok := m[id]
 	if !ok || t == nil {
 		return nil, errors.New("cannot get the template with id " + id)

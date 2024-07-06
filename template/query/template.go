@@ -94,6 +94,7 @@ func Build(obj map[string]interface{}, template set.Template, param func(int) st
 	}
 	return strings.Join(results, ""), params
 }
+
 type QueryBuilder struct {
 	Template  set.Template
 	ModelType *reflect.Type
@@ -105,6 +106,7 @@ type QueryBuilder struct {
 type Builder interface {
 	BuildQuery(f interface{}) (string, []interface{})
 }
+
 func UseQuery(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, param func(i int) string, buildSort func(string, reflect.Type) string, opts ...func(string) string) (func(interface{}) (string, []interface{}), error) {
 	b, err := NewQueryBuilder(id, m, modelType, mp, param, buildSort, opts...)
 	if err != nil {

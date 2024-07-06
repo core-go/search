@@ -1,9 +1,10 @@
-package query
+package builder
 
 import (
-	"github.com/core-go/search"
 	"reflect"
 	"strings"
+
+	"github.com/core-go/search"
 )
 
 func UseQuery(resultModelType reflect.Type) func(interface{}) map[string]interface{} {

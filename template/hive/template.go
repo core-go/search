@@ -23,6 +23,7 @@ const (
 	l2 = len(t2)
 	l3 = len(t3)
 )
+
 func Merge(obj map[string]interface{}, format set.StringFormat, skipArray bool, separator string, prefix string, suffix string) string {
 	results := make([]string, 0)
 	parameters := format.Parameters
@@ -56,13 +57,13 @@ func Merge(obj map[string]interface{}, format set.StringFormat, skipArray bool, 
 					l := vo.Len()
 					if l > 0 {
 						if skipArray {
-							vx, _ :=GetDBValue(p, 2, "")
+							vx, _ := GetDBValue(p, 2, "")
 							results = append(results, vx)
 						} else {
 							sa := make([]string, 0)
 							for i := 0; i < l; i++ {
 								model := vo.Index(i).Addr()
-								vx, _ :=GetDBValue(model.Interface(), 4, "")
+								vx, _ := GetDBValue(model.Interface(), 4, "")
 								sa = append(sa, vx)
 							}
 							results = append(results, strings.Join(sa, ","))
@@ -92,6 +93,7 @@ func Build(obj map[string]interface{}, template set.Template) string {
 	}
 	return strings.Join(results, "")
 }
+
 type QueryBuilder struct {
 	Template  set.Template
 	ModelType *reflect.Type
@@ -102,6 +104,7 @@ type QueryBuilder struct {
 type Builder interface {
 	BuildQuery(f interface{}) string
 }
+
 func UseQuery(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (func(interface{}) string, error) {
 	b, err := NewQueryBuilder(id, m, modelType, mp, buildSort, opts...)
 	if err != nil {
@@ -128,19 +131,6 @@ func GetQueryBuilder(isTemplate bool, builder Builder, id string, m map[string]*
 	}
 	return NewQueryBuilder(id, m, modelType, mp, buildSort, opts...)
 }
-func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (*QueryBuilder, error) {
-	t, ok := m[id]
-	if !ok || t == nil {
-		return nil, errors.New("cannot get the template with id " + id)
-	}
-	var q func(string) string
-	if len(opts) > 0 {
-		q = opts[0]
-	} else {
-		q = set.Q
-	}
-	return &QueryBuilder{Template: *t, ModelType: modelType, Map: mp, BuildSort: buildSort, Q: q}, nil
-}
 func (b *QueryBuilder) BuildQuery(f interface{}) string {
 	m := b.Map(f, b.ModelType, b.BuildSort)
 	if b.Q != nil {
@@ -153,6 +143,19 @@ func (b *QueryBuilder) BuildQuery(f interface{}) string {
 		}
 	}
 	return Build(m, b.Template)
+}
+func NewQueryBuilder(id string, m map[string]*set.Template, modelType *reflect.Type, mp func(interface{}, *reflect.Type, ...func(string, reflect.Type) string) map[string]interface{}, buildSort func(string, reflect.Type) string, opts ...func(string) string) (Builder, error) {
+	t, ok := m[id]
+	if !ok || t == nil {
+		return nil, errors.New("cannot get the template with id " + id)
+	}
+	var q func(string) string
+	if len(opts) > 0 {
+		q = opts[0]
+	} else {
+		q = set.Q
+	}
+	return &QueryBuilder{Template: *t, ModelType: modelType, Map: mp, BuildSort: buildSort, Q: q}, nil
 }
 
 func join(strs ...string) string {
