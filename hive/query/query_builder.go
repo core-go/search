@@ -98,7 +98,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 		x := field.Interface()
 		typeOfField := value.Type().Field(i)
 
-		if v, ok := x.(s.Filter); ok {
+		if v, ok := x.(*s.Filter); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
 					i, _, columnName := getFieldByJson(modelType, key)
@@ -112,13 +112,6 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 			}
 			if len(fields) > 0 {
 				s1 = `select ` + strings.Join(fields, ",") + ` from ` + tableName
-			} else {
-				columns := getColumnsSelect(modelType)
-				if len(columns) > 0 {
-					s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
-				} else {
-					s1 = `select * from ` + tableName
-				}
 			}
 			if len(v.Sort) > 0 {
 				sortString = buildSort(v.Sort, modelType)
@@ -320,6 +313,14 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 		format := fmt.Sprintf("(%s)", strings.Join(arrValue, ","))
 		rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", idCol, format))
 	}
+	if len(s1) == 0 {
+		columns := getColumnsSelect(modelType)
+		if len(columns) > 0 {
+			s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
+		} else {
+			s1 = `select * from ` + tableName
+		}
+	}
 	if len(rawJoin) > 0 {
 		s1 = s1 + " " + strings.Join(rawJoin, " ")
 	}
@@ -338,13 +339,6 @@ func Build(fm interface{}, tableName string, modelType reflect.Type) string {
 	}
 	s3 := s1 + sortString
 	return s3
-}
-func extractArray(values []interface{}, field interface{}) []interface{} {
-	s := reflect.Indirect(reflect.ValueOf(field))
-	for i := 0; i < s.Len(); i++ {
-		values = append(values, s.Index(i).Interface())
-	}
-	return values
 }
 func getFieldByJson(modelType reflect.Type, jsonName string) (int, string, string) {
 	numField := modelType.NumField()

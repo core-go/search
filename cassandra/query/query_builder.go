@@ -96,7 +96,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 		typeOfField := value.Type().Field(i)
 		param := buildParam(marker + 1)
 
-		if v, ok := x.(s.Filter); ok {
+		if v, ok := x.(*s.Filter); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
 					i, _, columnName := getFieldByJson(modelType, key)
@@ -110,13 +110,6 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 			}
 			if len(fields) > 0 {
 				s1 = `select ` + strings.Join(fields, ",") + ` from ` + tableName
-			} else {
-				columns := getColumnsSelect(modelType)
-				if len(columns) > 0 {
-					s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
-				} else {
-					s1 = `select * from ` + tableName
-				}
 			}
 			if len(v.Sort) > 0 {
 				sortString = buildSort(v.Sort, modelType)
@@ -326,6 +319,14 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, buildParam 
 		marker += len(excluding)
 		rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", idCol, format))
 		queryValues = extractArray(queryValues, excluding)
+	}
+	if len(s1) == 0 {
+		columns := getColumnsSelect(modelType)
+		if len(columns) > 0 {
+			s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
+		} else {
+			s1 = `select * from ` + tableName
+		}
 	}
 	if len(rawJoin) > 0 {
 		s1 = s1 + " " + strings.Join(rawJoin, " ")

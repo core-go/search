@@ -9,6 +9,9 @@ import (
 	s "github.com/core-go/search"
 )
 
+type Search[T any, F any] func(ctx context.Context, filter F, limit int64, offset int64) ([]T, int64, error)
+type SearchFn[T any, F any] func(ctx context.Context, filter F, limit int64, nextPageToken string) ([]T, string, error)
+
 type SearchHandler[T any, F any] struct {
 	Find         func(ctx context.Context, filter F, limit int64, offset int64) ([]T, int64, error)
 	filterType   reflect.Type

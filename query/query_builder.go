@@ -114,7 +114,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 		typeOfField := value.Type().Field(i)
 		param := buildParam(marker + 1)
 
-		if v, ok := x.(s.Filter); ok {
+		if v, ok := x.(*s.Filter); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
 					i, _, columnName := getFieldByJson(modelType, key)
@@ -128,13 +128,6 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 			}
 			if len(fields) > 0 {
 				s1 = `select ` + strings.Join(fields, ",") + ` from ` + tableName
-			} else {
-				columns := getColumnsSelect(modelType)
-				if len(columns) > 0 {
-					s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
-				} else {
-					s1 = `select * from ` + tableName
-				}
 			}
 			if len(v.Sort) > 0 {
 				sortString = buildSort(v.Sort, modelType)
@@ -347,6 +340,14 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 		rawConditions = append(rawConditions, fmt.Sprintf("%s NOT IN %s", idCol, format))
 		queryValues = extractArray(queryValues, excluding)
 	}
+	if len(s1) == 0 {
+		columns := getColumnsSelect(modelType)
+		if len(columns) > 0 {
+			s1 = `select  ` + strings.Join(columns, ",") + ` from ` + tableName
+		} else {
+			s1 = `select * from ` + tableName
+		}
+	}
 	if len(rawJoin) > 0 {
 		s1 = s1 + " " + strings.Join(rawJoin, " ")
 	}
@@ -372,7 +373,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 		}
 	}
 	if len(rawConditions) > 0 {
-		s2 := s1 + ` where ` + strings.Join(rawConditions, " AND ") + sortString
+		s2 := s1 + ` where ` + strings.Join(rawConditions, " and ") + sortString
 		return s2, queryValues
 	}
 	s3 := s1 + sortString
