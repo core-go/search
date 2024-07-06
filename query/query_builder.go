@@ -21,18 +21,18 @@ const (
 	asc              = "asc"
 )
 
-type Builder[T any, F any] struct {
+type Builder struct {
 	TableName  string
 	ModelType  reflect.Type
 	Driver     string
 	BuildParam func(int) string
 }
 
-func UseQuery[T any, F any](db *sql.DB, tableName string, options ...func(int) string) func(F) (string, []interface{}) {
-	b := NewBuilder[T, F](db, tableName, options...)
+func UseQuery(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) func(interface{}) (string, []interface{}) {
+	b := NewBuilder(db, tableName, modelType, options...)
 	return b.BuildQuery
 }
-func NewBuilder[T any, F any](db *sql.DB, tableName string, options ...func(int) string) *Builder[T, F] {
+func NewBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *Builder {
 	driver := getDriver(db)
 	var build func(int) string
 	if len(options) > 0 {
@@ -40,15 +40,10 @@ func NewBuilder[T any, F any](db *sql.DB, tableName string, options ...func(int)
 	} else {
 		build = getBuild(db)
 	}
-	return NewBuilderWithDriver[T, F](tableName, driver, build)
+	return NewBuilderWithDriver(tableName, modelType, driver, build)
 }
-func NewBuilderWithDriver[T any, F any](tableName string, driver string, buildParam func(int) string) *Builder[T, F] {
-	var t T
-	resultModelType := reflect.TypeOf(t)
-	if resultModelType.Kind() == reflect.Ptr {
-		resultModelType = resultModelType.Elem()
-	}
-	return &Builder[T, F]{TableName: tableName, ModelType: resultModelType, Driver: driver, BuildParam: buildParam}
+func NewBuilderWithDriver(tableName string, modelType reflect.Type, driver string, buildParam func(int) string) *Builder {
+	return &Builder{TableName: tableName, ModelType: modelType, Driver: driver, BuildParam: buildParam}
 }
 
 const (
@@ -88,7 +83,7 @@ func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	}
 	return nil*/
 }
-func (b *Builder[T, F]) BuildQuery(filter F) (string, []interface{}) {
+func (b *Builder) BuildQuery(filter interface{}) (string, []interface{}) {
 	return Build(filter, b.TableName, b.ModelType, b.Driver, b.BuildParam)
 }
 func Build(fm interface{}, tableName string, modelType reflect.Type, driver string, buildParam func(int) string) (string, []interface{}) {

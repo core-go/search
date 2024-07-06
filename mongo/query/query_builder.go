@@ -16,28 +16,19 @@ var Operators = map[string]string{
 	"<":  "$lt",
 }
 
-func UseQueryByResultType[F any](resultModelType reflect.Type) func(filter F) (bson.D, bson.M) {
-	b := NewBuilder[F](resultModelType)
-	return b.BuildQuery
-}
-func UseQuery[T any, F any]() func(filter F) (bson.D, bson.M) {
-	var t T
-	resultModelType := reflect.TypeOf(t)
-	if resultModelType.Kind() == reflect.Ptr {
-		resultModelType = resultModelType.Elem()
-	}
-	b := NewBuilder[F](resultModelType)
+func UseQuery(resultModelType reflect.Type) func(filter interface{}) (bson.D, bson.M) {
+	b := NewBuilder(resultModelType)
 	return b.BuildQuery
 }
 
-type Builder[F any] struct {
+type Builder struct {
 	ModelType reflect.Type
 }
 
-func NewBuilder[F any](resultModelType reflect.Type) *Builder[F] {
-	return &Builder[F]{ModelType: resultModelType}
+func NewBuilder(resultModelType reflect.Type) *Builder {
+	return &Builder{ModelType: resultModelType}
 }
-func (b *Builder[F]) BuildQuery(filter F) (bson.D, bson.M) {
+func (b *Builder) BuildQuery(filter interface{}) (bson.D, bson.M) {
 	return Build(filter, b.ModelType)
 }
 

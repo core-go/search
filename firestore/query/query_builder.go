@@ -8,24 +8,20 @@ import (
 	"strings"
 )
 
-type Builder[T any, F any] struct {
+type Builder struct {
 	ModelType reflect.Type
 }
 
-func UseQuery[T any, F any]() func(F) ([]f.Query, []string) {
-	bu := NewBuilder[T, F]()
+func UseQuery(resultModelType reflect.Type) func(interface{}) ([]f.Query, []string) {
+	bu := NewBuilder(resultModelType)
 	return bu.BuildQuery
 }
 
-func NewBuilder[T any, F any]() *Builder[T, F] {
-	var t T
-	resultModelType := reflect.TypeOf(t)
-	if resultModelType.Kind() == reflect.Ptr {
-		resultModelType = resultModelType.Elem()
-	}
-	return &Builder[T, F]{ModelType: resultModelType}
+func NewBuilder(resultModelType reflect.Type) *Builder {
+	return &Builder{ModelType: resultModelType}
 }
-func (b *Builder[T, F]) BuildQuery(sm F) ([]f.Query, []string) {
+
+func (b *Builder) BuildQuery(sm interface{}) ([]f.Query, []string) {
 	return BuildQueryByType(sm, b.ModelType)
 }
 
