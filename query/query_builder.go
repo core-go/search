@@ -3,11 +3,12 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	s "github.com/core-go/search"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	s "github.com/core-go/search"
 )
 
 const (
@@ -21,18 +22,18 @@ const (
 	asc              = "asc"
 )
 
-type Builder struct {
+type Builder[T any, F any] struct {
 	TableName  string
 	ModelType  reflect.Type
 	Driver     string
 	BuildParam func(int) string
 }
 
-func UseQuery(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) func(interface{}) (string, []interface{}) {
-	b := NewBuilder(db, tableName, modelType, options...)
+func UseQuery[T any, F any](db *sql.DB, tableName string, options ...func(int) string) func(F) (string, []interface{}) {
+	b := NewBuilder[T, F](db, tableName, options...)
 	return b.BuildQuery
 }
-func NewBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ...func(int) string) *Builder {
+func NewBuilder[T any, F any](db *sql.DB, tableName string, options ...func(int) string) *Builder[T, F] {
 	driver := getDriver(db)
 	var build func(int) string
 	if len(options) > 0 {
@@ -40,10 +41,18 @@ func NewBuilder(db *sql.DB, tableName string, modelType reflect.Type, options ..
 	} else {
 		build = getBuild(db)
 	}
-	return NewBuilderWithDriver(tableName, modelType, driver, build)
+	return NewBuilderWithDriver[T, F](tableName, driver, build)
 }
-func NewBuilderWithDriver(tableName string, modelType reflect.Type, driver string, buildParam func(int) string) *Builder {
-	return &Builder{TableName: tableName, ModelType: modelType, Driver: driver, BuildParam: buildParam}
+func NewBuilderWithDriver[T any, F any](tableName string, driver string, buildParam func(int) string) *Builder[T, F] {
+	var t T
+	resultModelType := reflect.TypeOf(t)
+	if resultModelType.Kind() == reflect.Ptr {
+		resultModelType = resultModelType.Elem()
+	}
+	return &Builder[T, F]{TableName: tableName, ModelType: resultModelType, Driver: driver, BuildParam: buildParam}
+}
+func (b *Builder[T, F]) BuildQuery(filter F) (string, []interface{}) {
+	return Build(filter, b.TableName, b.ModelType, b.Driver, b.BuildParam)
 }
 
 const (
@@ -83,10 +92,7 @@ func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	}
 	return nil*/
 }
-func (b *Builder) BuildQuery(filter interface{}) (string, []interface{}) {
-	return Build(filter, b.TableName, b.ModelType, b.Driver, b.BuildParam)
-}
-func Build(fm interface{}, tableName string, modelType reflect.Type, driver string, buildParam func(int) string) (string, []interface{}) {
+func Build(filter interface{}, tableName string, modelType reflect.Type, driver string, buildParam func(int) string) (string, []interface{}) {
 	s1 := ""
 	rawConditions := make([]string, 0)
 	queryValues := make([]interface{}, 0)
@@ -97,7 +103,7 @@ func Build(fm interface{}, tableName string, modelType reflect.Type, driver stri
 	fields := make([]string, 0)
 	var excluding []string
 	var keyword string
-	value := reflect.Indirect(reflect.ValueOf(fm))
+	value := reflect.Indirect(reflect.ValueOf(filter))
 	typeOfValue := value.Type()
 	numField := value.NumField()
 	var idCol string

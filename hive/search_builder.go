@@ -2,6 +2,7 @@ package hive
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -16,53 +17,64 @@ const (
 	DefaultPagingFormat = " limit %s offset %s "
 )
 
-type SearchBuilder struct {
-	Connection  *hv.Connection
-	BuildQuery  func(sm interface{}) string
-	ModelType   reflect.Type
-	Map         func(ctx context.Context, model interface{}) (interface{}, error)
-	fieldsIndex map[string]int
+type SearchBuilder[T any, F any] struct {
+	Connection *hv.Connection
+	BuildQuery func(F) string
+	Mp         func(*T)
+	Map        map[string]int
 }
 
-func NewSearchBuilder(connection *hv.Connection, modelType reflect.Type, buildQuery func(interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) (*SearchBuilder, error) {
-	var mp func(context.Context, interface{}) (interface{}, error)
+func NewSearchBuilder[T any, F any](connection *hv.Connection, buildQuery func(F) string, options ...func(*T)) (*SearchBuilder[T, F], error) {
+	var mp func(*T)
 	if len(options) >= 1 {
 		mp = options[0]
+	}
+	var t T
+	modelType := reflect.TypeOf(t)
+	if modelType.Kind() != reflect.Struct {
+		return nil, errors.New("T must be a struct")
 	}
 	fieldsIndex, err := GetColumnIndexes(modelType)
 	if err != nil {
 		return nil, err
 	}
-	builder := &SearchBuilder{Connection: connection, fieldsIndex: fieldsIndex, BuildQuery: buildQuery, ModelType: modelType, Map: mp}
+	builder := &SearchBuilder[T, F]{Connection: connection, Map: fieldsIndex, BuildQuery: buildQuery, Mp: mp}
 	return builder, nil
 }
 
-func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results interface{}, limit int64, offset int64) (int64, error) {
+func (b *SearchBuilder[T, F]) Search(ctx context.Context, m F, limit int64, offset int64) ([]T, int64, error) {
 	sql := b.BuildQuery(m)
 	query := BuildPagingQuery(sql, limit, offset)
 	cursor := b.Connection.Cursor()
 	defer cursor.Close()
+	var res []T
 	cursor.Exec(ctx, sql)
 	if cursor.Err != nil {
-		return -1, cursor.Err
+		return res, -1, cursor.Err
 	}
-	err := Query(ctx, cursor, b.fieldsIndex, results, query)
+	err := Query(ctx, cursor, b.Map, &res, query)
 	if err != nil {
-		return -1, err
+		return res, -1, err
 	}
 	countQuery := BuildCountQuery(sql)
 	cursor.Exec(ctx, countQuery)
 	if cursor.Err != nil {
-		return -1, cursor.Err
+		return res, -1, cursor.Err
 	}
 	var count int64
 	for cursor.HasMore(ctx) {
 		cursor.FetchOne(ctx, &count)
 		if cursor.Err != nil {
-			return count, cursor.Err
+			return res, count, cursor.Err
 		}
 	}
-	return count, err
+	if b.Mp != nil {
+		l := len(res)
+		for i := 0; i < l; i++ {
+			b.Mp(&res[i])
+		}
+	}
+	return res, count, err
 }
 func Count(ctx context.Context, cursor *hv.Cursor, query string) (int64, error) {
 	var count int64

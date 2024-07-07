@@ -14,36 +14,51 @@ const (
 	asc  = "asc"
 )
 
-type SearchBuilder struct {
-	DB          *gocql.ClusterConfig
-	BuildQuery  func(sm interface{}) (string, []interface{})
-	ModelType   reflect.Type
-	fieldsIndex map[string]int
+type SearchBuilder[T any, K any, F any] struct {
+	DB         *gocql.ClusterConfig
+	Table      string
+	BuildQuery func(F) (string, []interface{})
+	Mp         func(*T)
+	Map        map[string]int
 }
 
-func NewSearchQuery(db *gocql.ClusterConfig, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{})) (*SearchBuilder, error) {
-	return NewSearchBuilder(db, modelType, buildQuery)
-}
-func NewSearchBuilder(db *gocql.ClusterConfig, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{})) (*SearchBuilder, error) {
+func NewSearchBuilder[T any, K any, F any](db *gocql.ClusterConfig, table string, buildQuery func(F) (string, []interface{}), opts ...func(*T)) (*SearchBuilder[T, K, F], error) {
+	var mp func(*T)
+	if len(opts) >= 1 {
+		mp = opts[0]
+	}
+	var t T
+	modelType := reflect.TypeOf(t)
+	if modelType.Kind() == reflect.Ptr {
+		modelType = modelType.Elem()
+	}
 	fieldsIndex, err := GetColumnIndexes(modelType)
 	if err != nil {
 		return nil, err
 	}
-	builder := &SearchBuilder{DB: db, fieldsIndex: fieldsIndex, BuildQuery: buildQuery, ModelType: modelType}
+	builder := &SearchBuilder[T, K, F]{DB: db, Table: table, Map: fieldsIndex, BuildQuery: buildQuery, Mp: mp}
 	return builder, nil
 }
 
-func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results interface{}, limit int64, refId string) (string, error) {
-	sql, params := b.BuildQuery(m)
+func (b *SearchBuilder[T, K, F]) Search(ctx context.Context, filter F, limit int64, next string) ([]T, string, error) {
+	var objs []T
+	sql, params := b.BuildQuery(filter)
 	ses, err := b.DB.CreateSession()
 	defer ses.Close()
 
 	if err != nil {
-		return "", err
+		return objs, "", err
 	}
-	nextPageToken, er2 := QueryWithMap(ses, b.fieldsIndex, results, sql, params, limit, refId)
-	return nextPageToken, er2
+	nextPageToken, er2 := QueryWithMap(ses, b.Map, &objs, sql, params, limit, next)
+	if b.Mp != nil {
+		l := len(objs)
+		for i := 0; i < l; i++ {
+			b.Mp(&objs[i])
+		}
+	}
+	return objs, nextPageToken, er2
 }
+
 func QueryWithMap(ses *gocql.Session, fieldsIndex map[string]int, results interface{}, sql string, values []interface{}, max int64, refId string) (string, error) {
 	next, er0 := hex.DecodeString(refId)
 	if er0 != nil {

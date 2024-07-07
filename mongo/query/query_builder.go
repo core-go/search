@@ -2,11 +2,13 @@ package query
 
 import (
 	"fmt"
-	"github.com/core-go/search"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
 	"strings"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"github.com/core-go/search"
 )
 
 var Operators = map[string]string{
@@ -16,34 +18,43 @@ var Operators = map[string]string{
 	"<":  "$lt",
 }
 
-func UseQuery(resultModelType reflect.Type) func(filter interface{}) (bson.D, bson.M) {
-	b := NewBuilder(resultModelType)
+func UseQueryByResultType[F any](resultModelType reflect.Type) func(filter F) (bson.D, bson.M) {
+	b := NewBuilder[F](resultModelType)
+	return b.BuildQuery
+}
+func UseQuery[T any, F any]() func(filter F) (bson.D, bson.M) {
+	var t T
+	resultModelType := reflect.TypeOf(t)
+	if resultModelType.Kind() == reflect.Ptr {
+		resultModelType = resultModelType.Elem()
+	}
+	b := NewBuilder[F](resultModelType)
 	return b.BuildQuery
 }
 
-type Builder struct {
+type Builder[F any] struct {
 	ModelType reflect.Type
 }
 
-func NewBuilder(resultModelType reflect.Type) *Builder {
-	return &Builder{ModelType: resultModelType}
+func NewBuilder[F any](resultModelType reflect.Type) *Builder[F] {
+	return &Builder[F]{ModelType: resultModelType}
 }
-func (b *Builder) BuildQuery(filter interface{}) (bson.D, bson.M) {
+func (b *Builder[F]) BuildQuery(filter F) (bson.D, bson.M) {
 	return Build(filter, b.ModelType)
 }
 
-func Build(sm interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
+func Build(filter interface{}, resultModelType reflect.Type) (bson.D, bson.M) {
 	var query = bson.D{}
 	queryQ := make([]bson.M, 0)
 	hasQ := false
 	var fields = bson.M{}
 	var excluding []string
 
-	if _, ok := sm.(*search.Filter); ok {
+	if _, ok := filter.(*search.Filter); ok {
 		return query, fields
 	}
 
-	value := reflect.Indirect(reflect.ValueOf(sm))
+	value := reflect.Indirect(reflect.ValueOf(filter))
 	numField := value.NumField()
 	var keyword string
 	for i := 0; i < numField; i++ {

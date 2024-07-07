@@ -4,42 +4,54 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"reflect"
 )
 
-type SearchBuilder struct {
+type SearchBuilder[T any, F any] struct {
 	Database    *sql.DB
-	BuildQuery  func(sm interface{}) (string, []interface{})
-	ModelType   reflect.Type
-	Map         func(ctx context.Context, model interface{}) (interface{}, error)
+	BuildQuery  func(F) (string, []interface{})
 	fieldsIndex map[string]int
+	Map         func(*T)
 	ToArray     func(interface{}) interface {
 		driver.Valuer
 		sql.Scanner
 	}
 }
 
-func NewSearchBuilder(db *sql.DB, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{}), options ...func(context.Context, interface{}) (interface{}, error)) (*SearchBuilder, error) {
-	return NewSearchBuilderWithArray(db, modelType, buildQuery, nil, options...)
+func NewSearchBuilder[T any, F any](db *sql.DB, buildQuery func(F) (string, []interface{}), opts ...func(*T)) (*SearchBuilder[T, F], error) {
+	return NewSearchBuilderWithArray[T, F](db, buildQuery, nil, opts...)
 }
-func NewSearchBuilderWithArray(db *sql.DB, modelType reflect.Type, buildQuery func(interface{}) (string, []interface{}), toArray func(interface{}) interface {
+func NewSearchBuilderWithArray[T any, F any](db *sql.DB, buildQuery func(F) (string, []interface{}), toArray func(interface{}) interface {
 	driver.Valuer
 	sql.Scanner
-}, options ...func(context.Context, interface{}) (interface{}, error)) (*SearchBuilder, error) {
-	var mp func(context.Context, interface{}) (interface{}, error)
-	if len(options) >= 1 {
-		mp = options[0]
+}, opts ...func(*T)) (*SearchBuilder[T, F], error) {
+	var t T
+	modelType := reflect.TypeOf(t)
+	if modelType.Kind() != reflect.Struct {
+		return nil, errors.New("T must be a struct")
+	}
+	var mp func(*T)
+	if len(opts) >= 1 {
+		mp = opts[0]
 	}
 	fieldsIndex, err := GetColumnIndexes(modelType)
 	if err != nil {
 		return nil, err
 	}
-	builder := &SearchBuilder{Database: db, fieldsIndex: fieldsIndex, BuildQuery: buildQuery, ModelType: modelType, Map: mp, ToArray: toArray}
+	builder := &SearchBuilder[T, F]{Database: db, fieldsIndex: fieldsIndex, BuildQuery: buildQuery, Map: mp, ToArray: toArray}
 	return builder, nil
 }
 
-func (b *SearchBuilder) Search(ctx context.Context, m interface{}, results interface{}, limit int64, offset int64) (int64, error) {
-	query, params := b.BuildQuery(m)
-	total, er2 := BuildFromQuery(ctx, b.Database, b.fieldsIndex, results, query, params, limit, offset, b.ToArray)
-	return total, er2
+func (b *SearchBuilder[T, F]) Search(ctx context.Context, filter F, limit int64, offset int64) ([]T, int64, error) {
+	query, params := b.BuildQuery(filter)
+	var objs []T
+	total, er2 := BuildFromQuery(ctx, b.Database, b.fieldsIndex, &objs, query, params, limit, offset, b.ToArray)
+	if b.Map != nil {
+		l := len(objs)
+		for i := 0; i < l; i++ {
+			b.Map(&objs[i])
+		}
+	}
+	return objs, total, er2
 }

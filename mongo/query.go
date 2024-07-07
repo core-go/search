@@ -2,11 +2,12 @@ package mongo
 
 import (
 	"context"
+	"reflect"
+	"strings"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"reflect"
-	"strings"
 )
 
 func BuildSearchResult(ctx context.Context, collection *mongo.Collection, results interface{}, query bson.D, fields bson.M, sort bson.D, limit int64, skip int64) (int64, error) {

@@ -7,28 +7,33 @@ import (
 	"github.com/core-go/search"
 )
 
-func UseQuery(resultModelType reflect.Type) func(interface{}) map[string]interface{} {
-	b := NewBuilder(resultModelType)
+func UseQuery[T any, F any]() func(F) map[string]interface{} {
+	b := NewBuilder[T, F]()
 	return b.BuildQuery
 }
 
-type Builder struct {
+type Builder[T any, F any] struct {
 	ModelType reflect.Type
 }
 
-func NewBuilder(resultModelType reflect.Type) *Builder {
-	return &Builder{ModelType: resultModelType}
+func NewBuilder[T any, F any]() *Builder[T, F] {
+	var t T
+	modelType := reflect.TypeOf(t)
+	if modelType.Kind() == reflect.Ptr {
+		modelType = modelType.Elem()
+	}
+	return &Builder[T, F]{ModelType: modelType}
 }
-func (b *Builder) BuildQuery(sm interface{}) map[string]interface{} {
-	return Build(sm, b.ModelType)
+func (b *Builder[T, F]) BuildQuery(filter F) map[string]interface{} {
+	return Build(filter, b.ModelType)
 }
 
-func Build(sm interface{}, resultModelType reflect.Type) map[string]interface{} {
+func Build(filter interface{}, resultModelType reflect.Type) map[string]interface{} {
 	query := map[string]interface{}{}
-	if _, ok := sm.(*search.Filter); ok {
+	if _, ok := filter.(*search.Filter); ok {
 		return query
 	}
-	value := reflect.Indirect(reflect.ValueOf(sm))
+	value := reflect.Indirect(reflect.ValueOf(filter))
 	numField := value.NumField()
 	for i := 0; i < numField; i++ {
 		fieldValue := value.Field(i).Interface()

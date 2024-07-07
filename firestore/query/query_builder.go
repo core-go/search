@@ -1,39 +1,44 @@
 package query
 
 import (
-	"github.com/core-go/search"
-	f "github.com/core-go/search/firestore"
 	"log"
 	"reflect"
 	"strings"
+
+	"github.com/core-go/search"
+	f "github.com/core-go/search/firestore"
 )
 
-type Builder struct {
+type Builder[T any, F any] struct {
 	ModelType reflect.Type
 }
 
-func UseQuery(resultModelType reflect.Type) func(interface{}) ([]f.Query, []string) {
-	bu := NewBuilder(resultModelType)
+func UseQuery[T any, F any]() func(F) ([]f.Query, []string) {
+	bu := NewBuilder[T, F]()
 	return bu.BuildQuery
 }
 
-func NewBuilder(resultModelType reflect.Type) *Builder {
-	return &Builder{ModelType: resultModelType}
+func NewBuilder[T any, F any]() *Builder[T, F] {
+	var t T
+	resultModelType := reflect.TypeOf(t)
+	if resultModelType.Kind() == reflect.Ptr {
+		resultModelType = resultModelType.Elem()
+	}
+	return &Builder[T, F]{ModelType: resultModelType}
+}
+func (b *Builder[T, F]) BuildQuery(filter F) ([]f.Query, []string) {
+	return BuildQueryByType(filter, b.ModelType)
 }
 
-func (b *Builder) BuildQuery(sm interface{}) ([]f.Query, []string) {
-	return BuildQueryByType(sm, b.ModelType)
-}
-
-func BuildQueryByType(sm interface{}, resultModelType reflect.Type) ([]f.Query, []string) {
+func BuildQueryByType(filter interface{}, resultModelType reflect.Type) ([]f.Query, []string) {
 	var query = make([]f.Query, 0)
 	fields := make([]string, 0)
 
-	if _, ok := sm.(*search.Filter); ok {
+	if _, ok := filter.(*search.Filter); ok {
 		return query, fields
 	}
 
-	value := reflect.Indirect(reflect.ValueOf(sm))
+	value := reflect.Indirect(reflect.ValueOf(filter))
 	numField := value.NumField()
 	var keyword string
 	keywordFormat := map[string]string{

@@ -2,13 +2,14 @@ package query
 
 import (
 	"fmt"
-	s "github.com/core-go/search"
 	"math"
 	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	s "github.com/core-go/search"
 )
 
 const (
@@ -26,17 +27,25 @@ const (
 	asc  = "asc"
 )
 
-type Builder struct {
+type Builder[T any, F any] struct {
 	TableName string
 	ModelType reflect.Type
 }
 
-func UseQuery(tableName string, modelType reflect.Type) func(interface{}) string {
-	b := NewBuilder(tableName, modelType)
+func UseQuery[T any, F any](tableName string) func(F) string {
+	b := NewBuilder[T, F](tableName)
 	return b.BuildQuery
 }
-func NewBuilder(tableName string, modelType reflect.Type) *Builder {
-	return &Builder{TableName: tableName, ModelType: modelType}
+func NewBuilder[T any, F any](tableName string) *Builder[T, F] {
+	var t T
+	resultModelType := reflect.TypeOf(t)
+	if resultModelType.Kind() == reflect.Ptr {
+		resultModelType = resultModelType.Elem()
+	}
+	return &Builder[T, F]{TableName: tableName, ModelType: resultModelType}
+}
+func (b *Builder[T, F]) BuildQuery(filter F) string {
+	return Build(filter, b.TableName, b.ModelType)
 }
 
 const (
@@ -66,9 +75,6 @@ func getJoinFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 
 func getColumnNameFromSqlBuilderTag(typeOfField reflect.StructField) *string {
 	return getStringFromTag(typeOfField, "sql_builder", "column:")
-}
-func (b *Builder) BuildQuery(filter interface{}) string {
-	return Build(filter, b.TableName, b.ModelType)
 }
 
 func Build(fm interface{}, tableName string, modelType reflect.Type) string {
