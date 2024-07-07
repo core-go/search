@@ -1,4 +1,4 @@
-package handler
+package search
 
 import (
 	"context"

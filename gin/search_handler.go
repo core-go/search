@@ -1,11 +1,12 @@
-package gin
+package search
 
 import (
 	"context"
-	s "github.com/core-go/search"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"reflect"
+
+	s "github.com/core-go/search"
+	"github.com/gin-gonic/gin"
 )
 
 const sSearch = "search"

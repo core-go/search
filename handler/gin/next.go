@@ -1,13 +1,13 @@
-package handler
+package search
 
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"reflect"
 
 	s "github.com/core-go/search"
+	"github.com/gin-gonic/gin"
 )
 
 type NextSearchHandler[T any, F any] struct {

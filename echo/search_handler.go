@@ -1,11 +1,11 @@
-package echo
+package search
 
 import (
 	"context"
-	s "github.com/core-go/search"
 	"net/http"
 	"reflect"
 
+	s "github.com/core-go/search"
 	"github.com/labstack/echo/v4"
 )
 

@@ -1,11 +1,12 @@
-package v3
+package search
 
 import (
 	"context"
-	s "github.com/core-go/search"
-	"github.com/labstack/echo"
 	"net/http"
 	"reflect"
+
+	s "github.com/core-go/search"
+	"github.com/labstack/echo"
 )
 
 const sSearch = "search"
