@@ -104,18 +104,75 @@ func Build(filter interface{}, tableName string, modelType reflect.Type, driver 
 	var excluding []string
 	var keyword string
 	value := reflect.Indirect(reflect.ValueOf(filter))
-	typeOfValue := value.Type()
+	filterType := value.Type()
 	numField := value.NumField()
 	var idCol string
 	marker := 0
 	for i := 0; i < numField; i++ {
+		columnName := getColumn(filterType, i)
+		if columnName == "-" {
+			continue
+		}
 		field := value.Field(i)
 		kind := field.Kind()
 		x := field.Interface()
-		typeOfField := value.Type().Field(i)
+		tf := value.Type().Field(i)
+		fieldTypeName := tf.Type.String()
+		typeOfField := value.Type().Field(i) // ???
+		var psv string
+		isContinue := false
 		param := buildParam(marker + 1)
+		if kind == reflect.Ptr {
+			if field.IsNil() {
+				if fieldTypeName != "*string" {
+					continue
+				} else {
+					isContinue = true
+				}
+			} else {
+				field = field.Elem()
+				kind = field.Kind()
+				x = field.Interface()
+			}
+		}
+		if !isContinue {
+			s0, ok0 := x.(string)
+			if ok0 {
+				if len(s0) == 0 {
+					isContinue = true
+				}
+				psv = s0
+			}
+		}
+		if len(columnName) == 0 {
+			_, _, columnName = getFieldByJson(modelType, tf.Name)
+		}
+		columnNameFromSqlBuilderTag := getColumnNameFromSqlBuilderTag(typeOfField)
+		if columnNameFromSqlBuilderTag != nil {
+			columnName = *columnNameFromSqlBuilderTag
+		}
 
-		if v, ok := x.(*s.Filter); ok {
+		joinFromSqlBuilderTag := getJoinFromSqlBuilderTag(typeOfField)
+		if joinFromSqlBuilderTag != nil {
+			rawJoin = append(rawJoin, *joinFromSqlBuilderTag)
+		}
+		if isContinue {
+			if len(keyword) > 0 {
+				qMatch, isQ := tf.Tag.Lookup("q")
+				if isQ {
+					if qMatch == "=" {
+						qQueryValues = append(qQueryValues, keyword)
+					} else if qMatch == "like" {
+						qQueryValues = append(qQueryValues, buildQ(keyword))
+					} else {
+						qQueryValues = append(qQueryValues, prefix(keyword))
+					}
+					qCols = append(qCols, columnName)
+				}
+			}
+			continue
+		}
+		if v, ok := x.(s.Filter); ok {
 			if len(v.Fields) > 0 {
 				for _, key := range v.Fields {
 					i, _, columnName := getFieldByJson(modelType, key)
@@ -133,72 +190,6 @@ func Build(filter interface{}, tableName string, modelType reflect.Type, driver 
 			if len(v.Sort) > 0 {
 				sortString = buildSort(v.Sort, modelType)
 			}
-		}
-
-		columnName, existCol := getColumnName(value.Type(), typeOfField.Name)
-		if !existCol {
-			columnName, _ = getColumnName(modelType, typeOfField.Name)
-		}
-
-		columnNameFromSqlBuilderTag := getColumnNameFromSqlBuilderTag(typeOfField)
-		if columnNameFromSqlBuilderTag != nil {
-			columnName = *columnNameFromSqlBuilderTag
-		}
-
-		joinFromSqlBuilderTag := getJoinFromSqlBuilderTag(typeOfField)
-		if joinFromSqlBuilderTag != nil {
-			rawJoin = append(rawJoin, *joinFromSqlBuilderTag)
-		}
-		ps := false
-		var value2 string
-		tag := typeOfValue.Field(i).Tag
-		isContinue := false
-		isStrPointer := false
-		if kind == reflect.Ptr {
-			if field.IsNil() {
-				isContinue = true
-				isStrPointer = true
-			} else {
-				s0, ok0 := x.(*string)
-				if ok0 {
-					if s0 == nil || len(*s0) == 0 {
-						isContinue = true
-						isStrPointer = true
-					}
-					ps = true
-					value2 = *s0
-				}
-				field = field.Elem()
-				x = field.Interface()
-				kind = field.Kind()
-			}
-		}
-		if !isStrPointer {
-			s0, ok0 := x.(string)
-			if ok0 {
-				if len(s0) == 0 {
-					isContinue = true
-				}
-				value2 = s0
-			}
-		}
-		if isContinue {
-			if len(keyword) > 0 {
-				qMatch, isQ := tag.Lookup("q")
-				if isQ {
-					if qMatch == "=" {
-						qQueryValues = append(qQueryValues, keyword)
-					} else if qMatch == "like" {
-						qQueryValues = append(qQueryValues, buildQ(keyword))
-					} else {
-						qQueryValues = append(qQueryValues, prefix(keyword))
-					}
-					qCols = append(qCols, columnName)
-				}
-			}
-			continue
-		}
-		if v, ok := x.(s.Filter); ok {
 			if v.Excluding != nil && len(v.Excluding) > 0 {
 				index, _, columnName := getFieldByBson(value.Type(), "_id")
 				if !(index == -1 || columnName == "") {
@@ -210,28 +201,26 @@ func Build(filter interface{}, tableName string, modelType reflect.Type, driver 
 				keyword = strings.TrimSpace(v.Q)
 			}
 			continue
-		} else if ps || kind == reflect.String {
-			if len(value2) > 0 {
-				key, ok := tag.Lookup("operator")
-				if !ok {
-					key, _ = tag.Lookup("q")
-				}
-				if key == "=" {
-					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, "=", param))
-				} else {
-					if driver == driverPostgres { // "postgres"
-						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ilike`, param))
-					} else {
-						rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
-					}
-					if key == "like" {
-						queryValues = append(queryValues, buildQ(value2))
-					} else {
-						queryValues = append(queryValues, prefix(value2))
-					}
-				}
-				marker++
+		} else if len(psv) > 0 {
+			key, ok := tf.Tag.Lookup("operator")
+			if !ok {
+				key, _ = tf.Tag.Lookup("q")
 			}
+			if key == "=" {
+				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, "=", param))
+			} else {
+				if driver == driverPostgres { // "postgres"
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, `ilike`, param))
+				} else {
+					rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, like, param))
+				}
+				if key == "like" {
+					queryValues = append(queryValues, buildQ(psv))
+				} else {
+					queryValues = append(queryValues, prefix(psv))
+				}
+			}
+			marker++
 		} else if dateTime, ok := x.(s.TimeRange); ok {
 			if dateTime.Min != nil {
 				rawConditions = append(rawConditions, fmt.Sprintf("%s %s %s", columnName, greaterEqualThan, param))
@@ -325,7 +314,7 @@ func Build(filter interface{}, tableName string, modelType reflect.Type, driver 
 				marker += field.Len()
 			}
 		} else {
-			key, ok := tag.Lookup("operator")
+			key, ok := tf.Tag.Lookup("operator")
 			if !ok {
 				key = "="
 			}
@@ -411,6 +400,27 @@ func getFieldByJson(modelType reflect.Type, jsonName string) (int, string, strin
 		}
 	}
 	return -1, jsonName, jsonName
+}
+func getColumn(filterType reflect.Type, i int) string {
+	field := filterType.Field(i)
+	if tag2, ok := field.Tag.Lookup("gorm"); ok {
+		if tag2 == "-" {
+			return tag2
+		}
+		if has := strings.Contains(tag2, "column"); has {
+			str1 := strings.Split(tag2, ";")
+			num := len(str1)
+			for k := 0; k < num; k++ {
+				str2 := strings.Split(str1[k], ":")
+				for j := 0; j < len(str2); j++ {
+					if str2[j] == "column" {
+						return str2[j+1]
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 func getFieldByBson(modelType reflect.Type, bsonName string) (int, string, string) {
 	numField := modelType.NumField()
