@@ -7,7 +7,6 @@ import (
 	"reflect"
 
 	s "github.com/core-go/search"
-	"github.com/gin-gonic/gin"
 )
 
 type NextSearchHandler[T any, F any] struct {
@@ -96,16 +95,15 @@ func NewNextSearchHandlerWithQuickSearch[T any, F any](search func(context.Conte
 		JsonMap: firstLayerIndexes, SecondaryJsonMap: secondLayerIndexes, isPtr: isPtr}
 }
 
-func (c *NextSearchHandler[T, F]) Search(ctx *gin.Context) {
-	r := ctx.Request
+func (c *NextSearchHandler[T, F]) Search(w http.ResponseWriter, r *http.Request) {
 	filter, x, er0 := s.BuildFilter(r, c.filterType, c.ParamIndex, c.userId, c.FilterIndex)
 	if er0 != nil {
-		ctx.String(http.StatusBadRequest, "cannot decode filter: "+er0.Error())
+		http.Error(w, "cannot decode filter: "+er0.Error(), http.StatusBadRequest)
 		return
 	}
 	limit, _, fs, _, nextPageToken, er1 := s.Extract(filter)
 	if er1 != nil {
-		respondError(ctx, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er1, c.WriteLog)
+		s.RespondError(w, r, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er1, c.WriteLog)
 		return
 	}
 	var ft F
@@ -113,7 +111,7 @@ func (c *NextSearchHandler[T, F]) Search(ctx *gin.Context) {
 	if c.isPtr {
 		ft, ok = filter.(F)
 		if !ok {
-			ctx.String(http.StatusBadRequest, fmt.Sprintf("cannot cast filter %v", filter))
+			http.Error(w, fmt.Sprintf("cannot cast filter %v", filter), http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -121,26 +119,26 @@ func (c *NextSearchHandler[T, F]) Search(ctx *gin.Context) {
 		pt := reflect.Indirect(mv).Interface()
 		ft, ok = pt.(F)
 		if !ok {
-			ctx.String(http.StatusBadRequest, fmt.Sprintf("cannot cast filter %v", filter))
+			http.Error(w, fmt.Sprintf("cannot cast filter %v", filter), http.StatusBadRequest)
 			return
 		}
 	}
 	models, next, er2 := c.Find(r.Context(), ft, limit, nextPageToken)
 	if er2 != nil {
-		respondError(ctx, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er2, c.WriteLog)
+		s.RespondError(w, r, http.StatusInternalServerError, internalServerError, c.LogError, c.ResourceName, c.Activity, er2, c.WriteLog)
 		return
 	}
 	res := s.BuildNextResultMap(models, next, c.List, c.Next)
 	if x == -1 {
-		respond(ctx, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
+		s.Respond(w, r, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
 	} else if c.CSV && x == 1 {
 		resCSV, ok := s.ResultToNextCsv(fs, models, next, c.embedField, c.JsonMap, c.SecondaryJsonMap)
 		if ok {
-			respond(ctx, http.StatusOK, resCSV, c.WriteLog, c.ResourceName, c.Activity, true, "")
+			s.Respond(w, r, http.StatusOK, resCSV, c.WriteLog, c.ResourceName, c.Activity, true, "")
 		} else {
-			respond(ctx, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
+			s.Respond(w, r, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
 		}
 	} else {
-		respond(ctx, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
+		s.Respond(w, r, http.StatusOK, res, c.WriteLog, c.ResourceName, c.Activity, true, "")
 	}
 }
